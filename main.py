@@ -3,43 +3,31 @@
 
 import os
 import time
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import torch
 import torch.nn as nn
 import numpy as np
-import scipy.io as sio
-import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
-from torchvision import transforms, models
 from importlib import import_module
-
+import torch.nn.functional as F
 from Logger import CustomLogger
 from DataCreation import FlameDataset
 from Plot_Outputs import saveheatmaps, save_error_heatmaps
-from Powerpoint_output_visuals import PowerPointVisual
-
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 # Configuration
 class Config:
-    
+    """
+    Configuration class for dataset parameters, model training, and output settings.
+    """    
     def __init__(self):
+        """
+        Initialize configuration settings.
+        """
         #Params for dataset creation    
         self.paramsType2 = "~~~~~Params for dataset creation~~~~~"
         self.root_dir = 'C:/Users/User/Documents/GenerateData/GeneratedData'  # Path to your dataset GeneratedData / GeneratedData_Extra / try / GeneratedData_Inference
-       
-        ##Data for GeneratedData
-        # self.global_T_max = 2853.0
-        # self.global_fv_max = 11.224797513519933
-        # self.global_img_max = 117850.69376366596
-        # self.global_T_min = 299.0
-        # self.global_fv_min = 0.0
-        # self.global_img_min = -1.7508090522203428
-        # self.Fvmax_height = 808 
-        # self.Fvmax_width = 213
-        # self.Imagemax_height = 808
-        # self.Imagemax_width = 213
-        
-        ##Data for GeneratedData without >20000
+               
+        ##Data for GeneratedData without image values>20000 or values<0
         self.global_img_min = 0.0
         self.global_img_max = 19941.026744724255
         self.global_T_min = 299.0
@@ -49,21 +37,9 @@ class Config:
         self.Fvmax_height = 808
         self.Fvmax_width = 213
         self.Imagemax_height = 808
-        self.Imagemax_width = 213
+        self.Imagemax_width = 213        
         
-        ##Data for GeneratedData_Extra
-        # self.global_img_min = 0.0
-        # self.global_img_max = 165457.63818922683
-        # self.global_T_min = 299.0
-        # self.global_T_max = 2831.0
-        # self.global_fv_min = 0.0
-        # self.global_fv_max = 10.122883083787926
-        # self.Fvmax_height = 807
-        # self.Fvmax_width = 224
-        # self.Imagemax_height = 807
-        # self.Imagemax_width = 224
-
-        ##Data for GeneratedData_Extra_without >20000
+        ##Data for GeneratedData_Extra_without image values>20000 or values<0
         # self.global_img_min = 0.0
         # self.global_img_max = 19018.66569215979
         # self.global_T_min = 299.0
@@ -133,8 +109,6 @@ class Config:
         torch.cuda.empty_cache()
         self.optimizer = "torch.optim.Adam(self.parameters(), lr=self.config.lr)"
         self.scheduler = "torch.optim.lr_scheduler.ReduceLROnPlateau(self.config.optimizer, mode='min', factor=0.3, patience=3)"
-        # self.scheduler_step = 7
-        # self.scheduler_gamma = 0.02
     #Params for outputs and logging
         self.paramsType1 = "~~~~~Params for outputs and logging~~~~~"     
         self.out_dir = f'Outputs_{self.model_name}_{self.targetType}_{time.strftime("%Y-%m%d-%H%M%S")}' #Path to save outputs   
@@ -143,9 +117,10 @@ class Config:
         self.logger = CustomLogger(self.log_filename, self.__class__.__name__).get_logger()
         self.savePlots = True #True/False - Save plots of the training process or show them without saving
 
-
     def print_config(self):
-        """Print the configuration settings."""
+        """
+        Print the configuration settings.
+        """
         self.logger.info(f"""Logging to {self.log_filename}
                                           Log Format: {config.logger.logger.handlers[1].formatter._fmt}""")
         
@@ -157,45 +132,16 @@ class Config:
 
 ############################################################Functions
 
-# Function to prepare data
 def prepare_data(config):
     """
     Prepare and split the data for training
     
     Args:
-        flame_images: List of RGB flame images (1857, 813, 3)
-        temperature_maps: List of temperature maps (202, 92)
+        config (Config): Configuration object containing dataset parameters.
     
     Returns:
         train_loader, val_loader, test_loader
-    """
-    # # Define transformations
-    # transform = transforms.Compose([
-    #     transforms.RandomApply([
-    #         transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.02)
-    #     ], p=0.8),
-        
-    #     transforms.RandomAffine(
-    #         degrees=0,               # No rotation
-    #         translate=(0, 0.05),     # Vertical shift only
-    #         scale=(0.9, 1.1),        # Slight zoom in/out
-    #         shear=0                  # No shear
-    #     ),
-        
-    #     transforms.RandomResizedCrop(
-    #         size=(224, 224),         # Or your desired size
-    #         scale=(0.85, 1.0),       # Don't crop too aggressively
-    #         ratio=(0.9, 1.1)         # Keep it nearly square (or shape of your input)
-    #     ),
-
-    #     transforms.ToTensor(),
-
-    #     transforms.Normalize(
-    #         mean=[0.485, 0.456, 0.406],  # ImageNet stats (for pretrained models)
-    #         std=[0.229, 0.224, 0.225]
-    #     )
-    # ])
-    
+    """    
     dataset = FlameDataset(config)
     
     train_size = int(0.7 * len(dataset))
@@ -222,18 +168,15 @@ if __name__ == "__main__":
     config.print_config()
     # Create a logger for main
     main_logger = CustomLogger(config.log_filename, __name__).get_logger()
-    MODE = "train"  # Set to "train" or "inference" as needed
+    MODE = "train"  # Set to "train" or "inference" MODE as needed
     if MODE == "train":
         main_logger.info("Running in training mode...")
     #1. Create Data Loaders
         main_logger.info("Creating dataset...")
         # Prepare data
         train_loader, val_loader, test_loader = prepare_data(config)
-
-    #2. Run Model    
-        
+    #2. Run Model            
         main_logger.info("Running model...")
-
         try:
             model_module = import_module(f"Mymodels.{config.model_name}")
             model_class = getattr(model_module, config.model_name)
@@ -246,7 +189,6 @@ if __name__ == "__main__":
         except Exception as e:
             main_logger.error(f"Error loading model '{config.model_name}': {e}")
             raise
-
     #3. Save outputs
         try:
             model.plotLosses(train_losses, val_losses, test_loss)
@@ -255,17 +197,14 @@ if __name__ == "__main__":
             main_logger.error(f"Error in saving loss plots: {e}")
     
     elif MODE == "inference":
-        main_logger.info("Running in inference mode...")                
-        
+        main_logger.info("Running in inference mode...")                        
         # Load model
         try:
             model_module = import_module(f"Mymodels.{config.model_name}")
             model_class = getattr(model_module, config.model_name)
             model = model_class(config).to(config.device)
             model_path = os.path.join('C:/Users/User/Documents/Sooth_Features_Extraction_plat/Outputs_CNNencdec_both_2025-0605-160721', 'best_flame_model.pth')
-            # model.load_state_dict(torch.load(model_path, map_location=config.device))
             model.load_state_dict(torch.load(model_path, map_location=config.device), strict=False)
-
             model.eval()
             main_logger.info(f"Loaded model from {model_path}")
         except Exception as e:
@@ -274,16 +213,15 @@ if __name__ == "__main__":
 
          # Create dataset and get 1 sample
         dataset = FlameDataset(config)
-        image_tensor, gt_tensor = dataset[0]  # only need the image
+        image_tensor, gt_tensor = dataset[0]  
         image_tensor = image_tensor.unsqueeze(0).to(config.device)  # add batch dimension
         gt_tensor = gt_tensor.unsqueeze(0).to(config.device)
 
-        # Inference
+        # Inference for both only
         with torch.no_grad():
-            output = model(image_tensor)
-        import torch.nn.functional as F
-        # Denormalize
-        if config.targetType == "both":
+            output = model(image_tensor)        
+        
+        if config.targetType == "both": #case I want to test
             normalized_setFvValZero = (config.setFvValZero - config.global_fv_min) / max((config.global_fv_max - config.global_fv_min), 1e-6)
             normalized_setTValZero = (config.setTValZero - config.global_T_min) / max((config.global_T_max - config.global_T_min), 1e-6)
             output[:, 0, :, :][output[:, 0, :, :] < normalized_setFvValZero] = 0.0
@@ -291,34 +229,15 @@ if __name__ == "__main__":
             loss_fv = F.mse_loss(output[:, 0, :, :], gt_tensor[:, 0, :, :])
             loss_T = F.mse_loss(output[:, 1, :, :], gt_tensor[:, 1, :, :])
             loss = 0.5 * loss_fv + 0.5 * loss_T
-            main_logger.info(f"Losses - fv: {loss_fv.item()}, T: {loss_T.item()}, Combined: {loss.item()}")
-        # elif config.targetType == "T":
-        #     pred_T = output[:, 0, :, :] * (config.global_T_max - config.global_T_min) + config.global_T_min
-        #     pred_fv = None
-        # elif config.targetType == "fv":
-        #     pred_fv = output[:, 0, :, :] * (config.global_fv_max - config.global_fv_min) + config.global_fv_min
-        #     pred_T = None
-
-        # Convert to NumPy
-        # pred_T_np = pred_T.squeeze().cpu().numpy() if pred_T is not None else None
-        # pred_fv_np = pred_fv.squeeze().cpu().numpy() if pred_fv is not None else None
+            main_logger.info(f"Losses - fv: {loss_fv.item()}, T: {loss_T.item()}, Combined: {loss.item()}")       
 
             # === Save heatmaps using custom Plot_Outputs ===
         # save_dir = os.path.join(config.out_dir, "inference_results")
         os.makedirs(config.out_dir, exist_ok=True)
 
-        # Wrap tensors back to mimic training loop shapes
-        # output_tensor = torch.stack([
-        #     (output[:, 0, :, :]),
-        #     (output[:, 1, :, :])
-        # ]).unsqueeze(0).to(config.device)  # shape: (1, 2, H, W)
+        # Wrap tensors back to mimic training loop shapes        
         output_tensor = output.detach().cpu()
-
-        # Load ground truth for the same image
-        # Use same FlameDataset again for GT
-        # _, gt_tensor = dataset[0]
-        # gt_tensor = gt_tensor.unsqueeze(0).to(config.device)
-
+      
         # Input already loaded as image_tensor earlier
         sample_path = dataset.sample_dirs[0]  # assuming single sample
         sample_id = os.path.splitext(os.path.basename(sample_path))[0]
@@ -334,10 +253,7 @@ if __name__ == "__main__":
             sample_dir=sample_path,
             config=config
         )
-
-        # Optionally compute a dummy loss (e.g. MAE for display)
-        # dummy_loss = torch.nn.functional.l1_loss(output_tensor, gt_tensor).item()
-
+ 
         # Save error heatmaps
         save_error_heatmaps(
             outputs=output_tensor,
@@ -355,17 +271,6 @@ if __name__ == "__main__":
 
         main_logger.info(f"Inference heatmaps and error maps saved to: {config.out_dir}")
 
- 
-
-        
-    # # Create epoch visualization PowerPoint presentation
-    # try:        
-    #     ppt_vis = PowerPointVisual(config, train_losses, val_losses, test_loss)
-    #     epoch_images = ppt_vis.collect_images()
-    #     ppt_vis.create_presentation(epoch_images, 'losses.png', output_file="EpochsPresentation.pptx")
-    #     main_logger.info(f"Presentation saved to {os.path.join(config.out_dir, 'EpochsPresentation.pptx')}")
-    # except Exception as e:
-    #     main_logger.error(f"Error in creating presentation: {e}")
 
     
     
