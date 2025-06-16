@@ -150,7 +150,7 @@ class FlameDataset(Dataset):
         """
         cfd_path = os.path.join(sample_dir, "CFDImage.mat")
         cfd_mat = sio.loadmat(cfd_path)
-        image_array = cfd_mat["CFDImageOut"].astype(np.float32)
+        image_array = cfd_mat["CFDImage"].astype(np.float32)
         image_array = np.flipud(image_array)  # Flip the image array vertically
         image_array[image_array < self.config.setImgValZero] = 0.0 #negative values are not relevant and are set to 0.0
         #normelize
@@ -159,7 +159,7 @@ class FlameDataset(Dataset):
         #padding
         # image = np.pad(image_array,((0,self.config.input_shape[1]-image_array.shape[0]),(0,self.config.input_shape[2]-image_array.shape[1]),(0,0)), mode='constant', constant_values=0)
         image = self.pad_or_crop_to_shape(image_array, self.config.input_shape)  # Pad or crop to the desired shape
-        
+
         image = Image.fromarray((image * 255).astype(np.uint8))
         image = image.convert("RGB")                
         image = transforms.ToTensor()(image)
