@@ -208,7 +208,7 @@ class CNNencdec(nn.Module):
                                     test_loader.dataset.dataset.sample_dirs[test_loader.sampler.data_source.indices[i]],
                                     self.config, loss.item(), loss_fv.item() if self.config.targetType == "both" else None,
                                     loss_T.item() if self.config.targetType == "both" else None)
-                        print5samples += 1
+                        print10samples += 1
         test_loss /= len(test_loader)        
         self.logger.info(f"Test Loss: {test_loss:.8f}")
         #plot losses 

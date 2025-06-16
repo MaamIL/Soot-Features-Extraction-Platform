@@ -7,11 +7,12 @@ import torch
 import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader
+import scipy.io as sio
 from importlib import import_module
 import torch.nn.functional as F
 from Logger import CustomLogger
 from DataCreation import FlameDataset
-from Plot_Outputs import saveheatmaps, save_error_heatmaps
+from Plot_Outputs import saveheatmaps, save_error_heatmaps, save_inputImages
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 # Configuration
@@ -25,8 +26,9 @@ class Config:
         """
         #Params for dataset creation    
         self.paramsType2 = "~~~~~Params for dataset creation~~~~~"
-        self.root_dir = 'C:/Users/User/Documents/GenerateData/GeneratedData'  # Path to your dataset GeneratedData / GeneratedData_Extra / try / GeneratedData_Inference
-               
+        self.root_dir = 'C:/Users/User/Documents/GenerateData/GeneratedData_Inference'  # Path to your dataset GeneratedData / GeneratedData_Extra / try / GeneratedData_Inference / GeneratedData_SingleTest
+        self.modelpath = os.path.join('C:/Users/User/Documents/Sooth_Features_Extraction_plat/Outputs_CNNencdec_both_2025-0609-120330', 'best_flame_model.pth')
+        self.MODE = "Inference"  # Set to "Train" or "SingleTest" or "Inference" MODE as needed (train- train the model, test- load and test the model on a single sample (input-output), inference- load model and run inference on a single sample (input only))
         ##Data for GeneratedData without image values>20000 or values<0
         self.global_img_min = 0.0
         self.global_img_max = 19941.026744724255
@@ -103,7 +105,7 @@ class Config:
         self.batch_size = 12 # Batch size for training
         self.criterion = nn.MSELoss()
         self.lr=0.0001
-        self.num_epochs = 300 
+        self.num_epochs = 30 
         self.epochs_remark = "Patience of 15 epochs" 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         torch.cuda.empty_cache()
@@ -111,7 +113,7 @@ class Config:
         self.scheduler = "torch.optim.lr_scheduler.ReduceLROnPlateau(self.config.optimizer, mode='min', factor=0.3, patience=3)"
     #Params for outputs and logging
         self.paramsType1 = "~~~~~Params for outputs and logging~~~~~"     
-        self.out_dir = f'Outputs_{self.model_name}_{self.targetType}_{time.strftime("%Y-%m%d-%H%M%S")}' #Path to save outputs   
+        self.out_dir = f'{self.MODE}_{self.model_name}_{self.targetType}_{time.strftime("%Y-%m%d-%H%M%S")}' #Path to save outputs   
         os.makedirs(self.out_dir, exist_ok=True) # Create output directory    
         self.log_filename = os.path.join(self.out_dir, "log.txt")
         self.logger = CustomLogger(self.log_filename, self.__class__.__name__).get_logger()
@@ -168,9 +170,10 @@ if __name__ == "__main__":
     config.print_config()
     # Create a logger for main
     main_logger = CustomLogger(config.log_filename, __name__).get_logger()
-    MODE = "train"  # Set to "train" or "inference" MODE as needed
-    if MODE == "train":
+    
+    if config.MODE == "Train":
         main_logger.info("Running in training mode...")
+        
     #1. Create Data Loaders
         main_logger.info("Creating dataset...")
         # Prepare data
@@ -196,14 +199,15 @@ if __name__ == "__main__":
         except Exception as e:
             main_logger.error(f"Error in saving loss plots: {e}")
     
-    elif MODE == "inference":
-        main_logger.info("Running in inference mode...")                        
+    elif config.MODE == "SingleTest":
+        main_logger.info("Running in test mode...")    
+                      
         # Load model
         try:
             model_module = import_module(f"Mymodels.{config.model_name}")
             model_class = getattr(model_module, config.model_name)
             model = model_class(config).to(config.device)
-            model_path = os.path.join('C:/Users/User/Documents/Sooth_Features_Extraction_plat/Outputs_CNNencdec_both_2025-0605-160721', 'best_flame_model.pth')
+            model_path = config.modelpath
             model.load_state_dict(torch.load(model_path, map_location=config.device), strict=False)
             model.eval()
             main_logger.info(f"Loaded model from {model_path}")
@@ -221,7 +225,7 @@ if __name__ == "__main__":
         with torch.no_grad():
             output = model(image_tensor)        
         
-        if config.targetType == "both": #case I want to test
+        if config.targetType == "both": 
             normalized_setFvValZero = (config.setFvValZero - config.global_fv_min) / max((config.global_fv_max - config.global_fv_min), 1e-6)
             normalized_setTValZero = (config.setTValZero - config.global_T_min) / max((config.global_T_max - config.global_T_min), 1e-6)
             output[:, 0, :, :][output[:, 0, :, :] < normalized_setFvValZero] = 0.0
@@ -246,7 +250,7 @@ if __name__ == "__main__":
         saveheatmaps(
             outputs=output_tensor,
             gts=gt_tensor,
-            epoch="Inference",
+            epoch="TestSingle",
             sample_number=sample_id,
             inputs=image_tensor,
             heat_dir=config.out_dir,
@@ -258,7 +262,7 @@ if __name__ == "__main__":
         save_error_heatmaps(
             outputs=output_tensor,
             gts=gt_tensor,
-            epoch="Inference",
+            epoch="TestSingle",
             sample_id=sample_id,
             inputs=image_tensor,
             out_dir=config.out_dir,
@@ -269,10 +273,66 @@ if __name__ == "__main__":
             loss_T=loss_T.item()
         )
 
-        main_logger.info(f"Inference heatmaps and error maps saved to: {config.out_dir}")
-
-
+        main_logger.info(f"TestSingle heatmaps and error maps saved to: {config.out_dir}")
     
+    elif config.MODE == "Inference":
+        main_logger.info("Running in inference mode...")        
+                      
+        # Load model
+        try:
+            model_module = import_module(f"Mymodels.{config.model_name}")
+            model_class = getattr(model_module, config.model_name)
+            model = model_class(config).to(config.device)
+            model_path = config.modelpath
+            model.load_state_dict(torch.load(model_path, map_location=config.device), strict=False)
+            model.eval()
+            main_logger.info(f"Loaded model from {model_path}")
+        except Exception as e:
+            main_logger.error(f"Error loading model: {e}")
+            raise
+        # Load image from mat file
+         # Create dataset and get 1 sample
+        dataset = FlameDataset(config)
+        sample_path = dataset.sample_dirs[0]  # just one sample for inference
+        image_tensor = dataset._getImage_(sample_path)  # only image, no target
+        image_tensor = image_tensor.unsqueeze(0).to(config.device)  # add batch dimension
+        
+
+        # Inference for both only
+        with torch.no_grad():
+            output = model(image_tensor)
+        
+        normalized_setFvValZero = (config.setFvValZero - config.global_fv_min) / max((config.global_fv_max - config.global_fv_min), 1e-6)
+        normalized_setTValZero = (config.setTValZero - config.global_T_min) / max((config.global_T_max - config.global_T_min), 1e-6)
+        output[:, 0, :, :][output[:, 0, :, :] < normalized_setFvValZero] = 0.0
+        output[:, 1, :, :][output[:, 1, :, :] < normalized_setTValZero] = 0.0
+        # save_dir = os.path.join(config.out_dir, "inference_results")
+        os.makedirs(config.out_dir, exist_ok=True)
+
+        # Wrap tensors back to mimic training loop shapes        
+        output_tensor = output.detach().cpu()
+      
+        # Input already loaded as image_tensor earlier
+        # sample_path = dataset.sample_dirs[0]  # assuming single sample
+        sample_id = os.path.splitext(os.path.basename(sample_path))[0]
+        # Save input image
+        save_inputImages(
+            inputs=image_tensor[0].cpu().detach(),
+            sample_number=sample_id,
+            heat_dir=config.out_dir,
+            samp_folder=sample_path[sample_path.rfind('\\')+1:]
+        )
+        # Save heatmaps
+        saveheatmaps(
+            outputs=output,
+            gts=None,
+            epoch="Inference",
+            sample_number=sample_id,
+            inputs=image_tensor,
+            heat_dir=config.out_dir,
+            sample_dir=sample_path,
+            config=config
+        )
     
 
     

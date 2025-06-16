@@ -93,6 +93,78 @@ class FlameDataset(Dataset):
         T  = np.pad(T,((0, self.config.output_shape[0] - T.shape[0]), (0, self.config.output_shape[1] - T.shape[1])), mode='constant', constant_values=0.0)             
         return T
     
+    def pad_or_crop_to_shape(self, image_array, target_shape):
+        """
+        Pads or crops the image_array to match the target shape.
+        Only zero-valued margins are cropped if the image is too large.
+        
+        Args:
+            image_array (np.ndarray): Shape (H, W, C)
+            target_shape (tuple): (C, target_H, target_W)
+
+        Returns:
+            np.ndarray: Padded or cropped image of shape (target_H, target_W, C)
+        """
+        target_H, target_W = target_shape[1], target_shape[2]
+        H, W, C = image_array.shape
+
+        # --- CROP FROM MARGINS IF TOO BIG ---
+        if H > target_H:
+            # Crop zero rows from top and bottom
+            while H > target_H and np.all(image_array[0, :, :] == 0):
+                image_array = image_array[1:, :, :]
+                H -= 1
+            while H > target_H and np.all(image_array[-1, :, :] == 0):
+                image_array = image_array[:-1, :, :]
+                H -= 1
+
+        if W > target_W:
+            # Crop zero columns from left and right
+            while W > target_W and np.all(image_array[:, 0, :] == 0):
+                image_array = image_array[:, 1:, :]
+                W -= 1
+            while W > target_W and np.all(image_array[:, -1, :] == 0):
+                image_array = image_array[:, :-1, :]
+                W -= 1
+
+        # --- PAD IF TOO SMALL ---
+        pad_H = max(0, target_H - image_array.shape[0])
+        pad_W = max(0, target_W - image_array.shape[1])
+        
+        image_array = np.pad(
+            image_array,
+            ((0, pad_H), (0, pad_W), (0, 0)),
+            mode='constant',
+            constant_values=0
+        )
+
+        return image_array
+
+    def _getImage_(self, sample_dir):
+        """
+        Load and preprocess the CFD image from the given path.
+        Args:
+            sample_dir (str): Path to the CFDImage.mat file.
+        Returns:
+            torch.Tensor: Preprocessed image tensor of shape (C, H, W).
+        """
+        cfd_path = os.path.join(sample_dir, "CFDImage.mat")
+        cfd_mat = sio.loadmat(cfd_path)
+        image_array = cfd_mat["CFDImageOut"].astype(np.float32)
+        image_array = np.flipud(image_array)  # Flip the image array vertically
+        image_array[image_array < self.config.setImgValZero] = 0.0 #negative values are not relevant and are set to 0.0
+        #normelize
+        # image_array = image_array/4095.0
+        image_array = (image_array-self.config.global_img_min)/max((self.config.global_img_max-self.config.global_img_min), 1e-6)  # Avoid division by zero
+        #padding
+        # image = np.pad(image_array,((0,self.config.input_shape[1]-image_array.shape[0]),(0,self.config.input_shape[2]-image_array.shape[1]),(0,0)), mode='constant', constant_values=0)
+        image = self.pad_or_crop_to_shape(image_array, self.config.input_shape)  # Pad or crop to the desired shape
+        
+        image = Image.fromarray((image * 255).astype(np.uint8))
+        image = image.convert("RGB")                
+        image = transforms.ToTensor()(image)
+        return image
+
     def __getitem__(self, idx):      
         """
         Get a sample from the dataset.
@@ -103,20 +175,7 @@ class FlameDataset(Dataset):
         """  
         sample_dir = self.sample_dirs[idx]
         
-        cfd_path = os.path.join(sample_dir, "CFDImage.mat")
-        cfd_mat = sio.loadmat(cfd_path)
-        image_array = cfd_mat["CFDImage"].astype(np.float32)
-        image_array = np.flipud(image_array)  # Flip the image array vertically
-        image_array[image_array < self.config.setImgValZero] = 0.0 #negative values are not relevant and are set to 0.0
-        #normelize
-        # image_array = image_array/4095.0
-        image_array = (image_array-self.config.global_img_min)/max((self.config.global_img_max-self.config.global_img_min), 1e-6)  # Avoid division by zero
-        #padding
-        image = np.pad(image_array,((0,self.config.input_shape[1]-image_array.shape[0]),(0,self.config.input_shape[2]-image_array.shape[1]),(0,0)), mode='constant', constant_values=0)
-
-        image = Image.fromarray((image * 255).astype(np.uint8))
-        image = image.convert("RGB")                
-        image = transforms.ToTensor()(image)
+        image = self._getImage_(sample_dir)       
 
         soot_path = os.path.join(sample_dir, "sootCalculation.mat")
         soot_mat = sio.loadmat(soot_path)

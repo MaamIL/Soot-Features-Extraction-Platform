@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from PIL import Image
 
 def heatmaps(r, z, fvORt, cbar_label, pltTitle, savefile):
     """
@@ -31,13 +32,26 @@ def heatmaps(r, z, fvORt, cbar_label, pltTitle, savefile):
     plt.savefig(savefile)
     plt.close()
 
+def save_inputImages(inputs, sample_number, heat_dir, samp_folder):
+    # Save input image        
+        if inputs.ndimension() == 3 and inputs.shape[0] == 3:           
+            image_array = inputs.cpu().detach().numpy().astype(np.float32)
+            image_array = np.transpose(image_array, (1, 2, 0))  # (H, W, C)
+            # Normalize to [0, 1] and scale to [0, 255]
+            image_array = image_array / np.max(image_array)
+            image_uint8 = (image_array * 255).astype(np.uint8)
+            # Convert to PIL image and save
+            image = Image.fromarray(image_uint8).convert("RGB")
+            image.save(os.path.join(heat_dir, f'{sample_number}_{samp_folder}_Input.jpg'))
+
+
 def saveheatmaps(outputs, gts, epoch, sample_number, inputs, heat_dir, sample_dir, config):
     """
     Saves heatmaps of fv and T predictions and ground truths. Saves also input image.
     Parameters:
         outputs: (B, 2, H, W) - model predictions
         gts: (B, 2, H, W) - ground truth maps
-        epoch: int or str - current epoch or "Test"/"Inference"
+        epoch: int or str - current epoch or "Test"/"TestSingle"
         sample_number: str - index or tag for the sample
         inputs: (B, C, H, W) - original input images
         heat_dir: str - directory to save heatmaps
@@ -48,21 +62,14 @@ def saveheatmaps(outputs, gts, epoch, sample_number, inputs, heat_dir, sample_di
 
     # Convert tensors to CPU and detach for processing
     preds = outputs[0].cpu().detach()
-    gts = gts[0].cpu().detach()
+    if gts not in [None]:
+         gts = gts[0].cpu().detach() 
     inputs = inputs[0].cpu().detach()
-    from PIL import Image
-    # Optional image save (only once, epoch=0 or test/Inference sample)
-    if (epoch == 0) or (epoch == "Test") or (epoch == "Inference"):
+    
+    # Optional image save (only once, epoch=0 or test/TestSingle sample)
+    if (epoch == 0) or (epoch == "Test") or (epoch == "TestSingle"):
         # Save input image        
-        if inputs.ndimension() == 3 and inputs.shape[0] == 3:           
-            image_array = inputs.cpu().detach().numpy().astype(np.float32)
-            image_array = np.transpose(image_array, (1, 2, 0))  # (H, W, C)
-            # Normalize to [0, 1] and scale to [0, 255]
-            image_array = image_array / np.max(image_array)
-            image_uint8 = (image_array * 255).astype(np.uint8)
-            # Convert to PIL image and save
-            image = Image.fromarray(image_uint8).convert("RGB")
-            image.save(os.path.join(heat_dir, f'{sample_number}_{samp_folder}_Input.jpg'))
+        save_inputImages(inputs, sample_number, heat_dir, samp_folder)
 
         # Save GT heatmaps
         if gts.shape[0] == 2: # Assuming we are in both mode- gts has T and Fv
