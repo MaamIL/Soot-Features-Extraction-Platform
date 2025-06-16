@@ -107,7 +107,7 @@ class FlameDataset(Dataset):
         """
         target_H, target_W = target_shape[1], target_shape[2]
         H, W, C = image_array.shape
-
+        orig_H, orig_W, orig_C = H, W, C
         # --- CROP FROM MARGINS IF TOO BIG ---
         if H > target_H:
             # Crop zero rows from top and bottom
@@ -115,6 +115,10 @@ class FlameDataset(Dataset):
                 image_array = image_array[1:, :, :]
                 H -= 1
             while H > target_H and np.all(image_array[-1, :, :] == 0):
+                image_array = image_array[:-1, :, :]
+                H -= 1
+            # Now crop from the end (bottom) if still too large
+            while H > target_H:
                 image_array = image_array[:-1, :, :]
                 H -= 1
 
@@ -137,7 +141,8 @@ class FlameDataset(Dataset):
             mode='constant',
             constant_values=0
         )
-
+        self.logger.info(f"Padded/Cropped image to shape: {image_array.shape} from original shape: {(orig_H, orig_W, orig_C)} to target shape: {target_shape}")
+        self.logger.info(f"minimum value in image array: {np.min(image_array[image_array > 0])}, maximum value: {np.max(image_array)}")
         return image_array
 
     def _getImage_(self, sample_dir):
@@ -150,7 +155,7 @@ class FlameDataset(Dataset):
         """
         cfd_path = os.path.join(sample_dir, "CFDImage.mat")
         cfd_mat = sio.loadmat(cfd_path)
-        image_array = cfd_mat["CFDImage"].astype(np.float32)
+        image_array = cfd_mat["CFDImageOut"].astype(np.float32)
         image_array = np.flipud(image_array)  # Flip the image array vertically
         image_array[image_array < self.config.setImgValZero] = 0.0 #negative values are not relevant and are set to 0.0
         #normelize

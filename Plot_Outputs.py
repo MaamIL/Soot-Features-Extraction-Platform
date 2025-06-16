@@ -44,6 +44,13 @@ def save_inputImages(inputs, sample_number, heat_dir, samp_folder):
             image = Image.fromarray(image_uint8).convert("RGB")
             image.save(os.path.join(heat_dir, f'{sample_number}_{samp_folder}_Input.jpg'))
 
+def save_csv(filename, data):
+    """Save data to a CSV file.
+    Parameters:
+        filename: str - path to the CSV file
+        data: np.ndarray - data to save, should be 2D array-like
+    """
+    np.savetxt(filename, data, delimiter=",", fmt="%.6f")
 
 def saveheatmaps(outputs, gts, epoch, sample_number, inputs, heat_dir, sample_dir, config):
     """
@@ -75,13 +82,15 @@ def saveheatmaps(outputs, gts, epoch, sample_number, inputs, heat_dir, sample_di
         if gts.shape[0] == 2: # Assuming we are in both mode- gts has T and Fv
             fv_gt = gts[0].numpy()
             T_gt = gts[1].numpy()
-
+            save_csv(os.path.join(heat_dir, f'{sample_number}_{samp_folder}_Fv_GT.csv'), fv_gt)
+            save_csv(os.path.join(heat_dir, f'{sample_number}_{samp_folder}_T_GT.csv'), T_gt)
             for arr, name, cbar in zip([fv_gt, T_gt], ["Fv_GT", "T_GT"], ["$Fv(r, z)$ [ppm]", "$T(r, z)$ [K]"]):
                 r = np.linspace(0, 1, arr.shape[1])
                 z = np.linspace(0, 1, arr.shape[0])
                 title = f"{sample_number}_Heatmap of {name} ({sample_dir})"
                 savefile = os.path.join(heat_dir, f'{sample_number}_{samp_folder}_{name}.jpg')
                 heatmaps(r, z, arr, cbar, title, savefile)
+
         else: # Assuming we are in single mode- gts has T or Fv
             arr_gt = gts.numpy()
             r = np.linspace(0, 1, arr_gt.shape[1])
@@ -100,7 +109,9 @@ def saveheatmaps(outputs, gts, epoch, sample_number, inputs, heat_dir, sample_di
     if preds.shape[0] == 2: # Assuming we are in both mode- gts has T and Fv
         fv_pred = preds[0].numpy()
         T_pred = preds[1].numpy()
-
+        if (epoch == "Test") or (epoch == "TestSingle") or (epoch == "Inference"):
+            save_csv(os.path.join(heat_dir, f'{sample_number}_{samp_folder}_Fv_Pred.csv'), fv_pred)
+            save_csv(os.path.join(heat_dir, f'{sample_number}_{samp_folder}_T_Pred.csv'), T_pred)
         for arr, name, cbar in zip([fv_pred, T_pred], ["Fv_Pred", "T_Pred"], ["$Fv(r, z)$ [ppm]", "$T(r, z)$ [K]"]):
             r = np.linspace(0, 1, arr.shape[1])
             z = np.linspace(0, 1, arr.shape[0])

@@ -27,7 +27,7 @@ class Config:
         #Params for dataset creation    
         self.paramsType2 = "~~~~~Params for dataset creation~~~~~"
         self.root_dir = 'C:/Users/User/Documents/GenerateData/GeneratedData_Inference'  # Path to your dataset GeneratedData / GeneratedData_Extra / try / GeneratedData_Inference / GeneratedData_SingleTest
-        self.modelpath = os.path.join('C:/Users/User/Documents/Sooth_Features_Extraction_plat/Outputs_CNNencdec_both_2025-0609-120330', 'best_flame_model.pth')
+        self.modelpath = os.path.join('C:/Users/User/Documents/Sooth_Features_Extraction_plat/Train_CNNencdec_both_2025-0609-120330', 'best_flame_model.pth')
         self.MODE = "Inference"  # Set to "Train" or "SingleTest" or "Inference" MODE as needed (train- train the model, test- load and test the model on a single sample (input-output), inference- load model and run inference on a single sample (input only))
         ##Data for GeneratedData without image values>20000 or values<0
         self.global_img_min = 0.0
@@ -96,7 +96,7 @@ class Config:
         self.output_shape = (self.Fvmax_height, self.Fvmax_width) # (Height, Width) for temperature maps
         self.targetType = "both" # "T", "fv", or "both"
         self.isNorm = True # True/False - Normalize the input images
-        self.setImgValZero = 0#50 #Set values smaller than 50 to 0 in CFDImage
+        self.setImgValZero = 0 #50 #Set values smaller than 50 to 0 in CFDImage
         self.setFvValZero = 0.01 #Set values smaller than 0.01 to 0 in sootCalculation["fv"]
         self.setTValZero = 1000.0 #Set values smaller than 1000 to 300.0 in sootCalculation["T"]
     # Params for model training
@@ -105,7 +105,7 @@ class Config:
         self.batch_size = 12 # Batch size for training
         self.criterion = nn.MSELoss()
         self.lr=0.0001
-        self.num_epochs = 30 
+        self.num_epochs = 300 
         self.epochs_remark = "Patience of 15 epochs" 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         torch.cuda.empty_cache()
