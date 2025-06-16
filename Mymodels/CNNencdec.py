@@ -5,39 +5,37 @@ import os
 from tqdm import tqdm
 from Plot_Outputs import saveheatmaps, save_error_heatmaps
 import torch.optim as optim
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchsummary import summary
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 class CNNencdec(nn.Module):
+    """
+    CNN Encoder-Decoder model for predicting flame properties from CFD images.
+    """
     def __init__(self, config):
+        """
+        Initialize the CNN Encoder-Decoder model.
+        Args:
+            config (object): Configuration object containing model and data parameters.
+        """
+         # Initialize the logger
         super(CNNencdec, self).__init__()
         self.config = config        
         self.logger = CustomLogger(self.config.log_filename, self.__class__.__name__).get_logger()
-        
+        #Model's layers
         in_channels = self.config.input_shape[0]
         out_channels = 2 if self.config.targetType == "both" else 1
-
         self.encoder = Encoder(in_channels)
         self.decoder = Decoder()
         self.final = nn.Conv2d(64, out_channels, kernel_size=1)
-        # self.config.optimizer = torch.optim.Adam(self.parameters(), lr=self.config.lr), weight_decay=1e-4) #added weight decay (L2 regularization) to optimizer
+        #Model's configurations
         self.config.optimizer = torch.optim.Adam(self.parameters(), lr=self.config.lr)
-
-        # scheduler
-        self.config.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.config.optimizer, mode='min', factor=0.3, patience=3) #reduce lr in case of plateau in validation loss (no improvements after 5 epochs), then learning rate will be reduced: new_lr = lr * factor
-
-        # self.config.scheduler = torch.optim.lr_scheduler.StepLR(
-        #     self.config.optimizer,
-        #     step_size=self.config.scheduler_step,
-        #     gamma=self.config.scheduler_gamma
-        # )
-
-        # # Show model summary
-        # self.show_model_summary()
-
+          # scheduler- reduce lr in case of plateau in validation loss (no improvements after *patience* epochs), then learning rate will be reduced: new_lr = lr * factor
+        self.config.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.config.optimizer, mode='min', factor=0.3, patience=3) 
+     
         self.logger.info(f"""
         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         Model '{config.model_name}' initialized on {config.device}
@@ -45,11 +43,18 @@ class CNNencdec(nn.Module):
         """)
 
     def forward(self, x):
+        """
+        Forward pass of the model.
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, channels, height, width).
+        Returns:
+            torch.Tensor: Output tensor of shape (batch_size, out_channels, height, width).
+        """
         enc_out, features = self.encoder(x)
         dec_out = self.decoder(enc_out, features)
         out = self.final(dec_out)
         out = torch.sigmoid(out)
-        # Match output to desired size (e.g. 727, 138)
+        # Match output to desired size (e.g. 808x213)
         target_h, target_w = self.config.output_shape
         if out.shape[2] != target_h or out.shape[3] != target_w:
             out = F.interpolate(out, size=(target_h, target_w), mode='bilinear', align_corners=False)
@@ -57,6 +62,18 @@ class CNNencdec(nn.Module):
         return out
 
     def train_model(self, train_loader, val_loader, test_loader):
+        """
+        Train the model using the provided data loaders.
+        Each epoch consists of training and validation phases.
+        The model is evaluated on the test set after training.
+        During validation and testing, the model saves heatmaps of predictions and ground truths for visual inspection.
+        Args:
+            train_loader (torch.utils.data.DataLoader): DataLoader for training data.
+            val_loader (torch.utils.data.DataLoader): DataLoader for validation data.
+            test_loader (torch.utils.data.DataLoader): DataLoader for testing data.
+            Returns:
+            tuple: Lists of training losses, validation losses, and test loss.
+        """
         self.to(self.config.device)
         best_val_loss = float('inf')
         train_losses = []
@@ -65,7 +82,7 @@ class CNNencdec(nn.Module):
         for epoch in range(self.config.num_epochs):
             self.train()
             running_loss = 0.0
-
+            #use tqdm for progress bar
             with tqdm(train_loader, desc=f"Epoch {epoch+1}/{self.config.num_epochs} [Train]") as pbar:
                 for inputs, gts in pbar:
                     inputs = inputs.to(self.config.device)
@@ -73,7 +90,7 @@ class CNNencdec(nn.Module):
 
                     self.config.optimizer.zero_grad()
                     outputs = self(inputs)  
-                    # loss = self.config.criterion(outputs, preds)
+                    #calculate losses 
                     if self.config.targetType == "both":
                         loss_fv = F.mse_loss(outputs[:, 0, :, :], gts[:, 0, :, :])
                         loss_T = F.mse_loss(outputs[:, 1, :, :], gts[:, 1, :, :])
@@ -92,9 +109,10 @@ class CNNencdec(nn.Module):
             avg_train_loss = running_loss / len(train_loader)
             train_losses.append(avg_train_loss)
 
+            #validation phase
             self.eval()
             val_loss = 0.0
-            print4samples = 0
+            print4samples = 0 # Number of samples to print heatmaps for
             early_stop_patience = 15 # Number of epochs to wait before early stopping
             with torch.no_grad():
                 with tqdm(val_loader, desc=f"Epoch {epoch+1}/{self.config.num_epochs} [Val]") as pbar:
@@ -103,7 +121,7 @@ class CNNencdec(nn.Module):
                         gts = gts.to(self.config.device)
 
                         outputs = self(inputs)  
-                        # loss = self.config.criterion(outputs, preds)
+                        #calculate losses
                         if self.config.targetType == "both":
                             loss_fv = F.mse_loss(outputs[:, 0, :, :], gts[:, 0, :, :])
                             loss_T = F.mse_loss(outputs[:, 1, :, :], gts[:, 1, :, :])
@@ -115,8 +133,8 @@ class CNNencdec(nn.Module):
                         val_loss += loss.item()
                         pbar.set_postfix({"loss": loss.item()})
                        
-
-                        if ((epoch%10 == 0) or (epoch==self.config.num_epochs - 1)) and print4samples < 4:#(epoch in (0, int(self.config.num_epochs/4), int(self.config.num_epochs/2), int(self.config.num_epochs*0.75), self.config.num_epochs - 1))) and print4samples < 4:
+                        # Save heatmaps and error heatmaps for visual inspection for 4 samples every 10 epochs
+                        if (epoch%10 == 0) and print4samples < 4:
                             saveheatmaps(outputs, gts, epoch, str(i)+"_", inputs,
                                          self.config.out_dir,
                                          val_loader.dataset.dataset.sample_dirs[val_loader.sampler.data_source.indices[i]],
@@ -124,7 +142,7 @@ class CNNencdec(nn.Module):
                             save_error_heatmaps(outputs, gts, epoch, str(i)+"_", inputs, self.config.out_dir,
                                 val_loader.dataset.dataset.sample_dirs[val_loader.sampler.data_source.indices[i]],
                                 self.config, loss.item(), loss_fv.item() if self.config.targetType == "both" else None,
-                            loss_T.item() if self.config.targetType == "both" else None)
+                                loss_T.item() if self.config.targetType == "both" else None)
                             print4samples += 1
             avg_val_loss = val_loss / len(val_loader)
             val_losses.append(avg_val_loss)
@@ -134,6 +152,7 @@ class CNNencdec(nn.Module):
             if hasattr(self.config, 'scheduler') and self.config.scheduler:
                 self.config.scheduler.step(avg_val_loss)
 
+            # Early stopping and save best model are based on validation loss  
             if avg_val_loss < best_val_loss:
                 best_val_loss = avg_val_loss
                 epochs_no_improve = 0
@@ -141,7 +160,6 @@ class CNNencdec(nn.Module):
                 self.logger.info(f"Best model saved with val loss: {best_val_loss:.8f}")
             else:
                 epochs_no_improve += 1
-
             if epochs_no_improve >= early_stop_patience:
                 self.logger.info(f"Early stopping at epoch {epoch+1} due to no improvement in val loss for {early_stop_patience} epochs.")
                 break
@@ -149,21 +167,20 @@ class CNNencdec(nn.Module):
 
         # Test the model
         self.logger.info(f"\n\nTesting model on Best model saved with val loss: {best_val_loss:.8f}")
+        # Load the best saved model 
         self.load_state_dict(torch.load(os.path.join(self.config.out_dir, "best_flame_model.pth")))
         self.to(self.config.device)
         self.eval()
         test_loss = 0.0
-        # test_lossb40 = 0.0
-        print5samples = 0
+        print10samples = 0 #print 10 test samples heatmaps
         with torch.no_grad():
             with tqdm(test_loader, desc="Testing") as pbar:
                 for i, (inputs, gts) in enumerate(pbar):
                     inputs = inputs.to(self.config.device)
                     gts = gts.to(self.config.device)
                     outputs = self(inputs)  
-                    
-                    # loss = self.config.criterion(outputs, gts)
-                    # Calculate losses for both fv and T 
+                                        
+                    # Calculate losses 
                     if self.config.targetType == "both":
                         normalized_setFvValZero = (self.config.setFvValZero - self.config.global_fv_min) / max((self.config.global_fv_max - self.config.global_fv_min), 1e-6)
                         normalized_setTValZero = (self.config.setTValZero - self.config.global_T_min) / max((self.config.global_T_max - self.config.global_T_min), 1e-6)
@@ -173,36 +190,39 @@ class CNNencdec(nn.Module):
                         loss_T = F.mse_loss(outputs[:, 1, :, :], gts[:, 1, :, :])
                         loss = 0.5 * loss_fv + 0.5 * loss_T
                     elif self.config.targetType == "fv":
-                        loss_b40 = F.mse_loss(outputs[:, 0, :, :], gts[:, :, :])
                         normalized_setFvValZero = (self.config.setFvValZero - self.config.global_fv_min) / max((self.config.global_fv_max - self.config.global_fv_min), 1e-6)
                         outputs[:, 0, :, :][outputs[:, 0, :, :] < normalized_setFvValZero] = 0.0
                         loss = F.mse_loss(outputs[:, 0, :, :], gts[:, :, :])
                     elif self.config.targetType == "T":
-                        loss_b40 = F.mse_loss(outputs[:, 0, :, :], gts[:, :, :])
                         normalized_setTValZero = (self.config.setTValZero - self.config.global_T_min) / max((self.config.global_T_max - self.config.global_T_min), 1e-6)
                         outputs[:, 0, :, :][outputs[:, 0, :, :] < normalized_setTValZero] = 0.0
                         loss = F.mse_loss(outputs[:, 0, :, :], gts[:, :, :])
                     test_loss += loss.item()
-                    # test_lossb40 += loss_b40.item() 
-                    if print5samples < 10:
+                    # Save heatmaps and error heatmaps for visual inspection for 10 samples
+                    if print10samples < 10:
                         saveheatmaps(outputs, gts, "Test", str(i)+"_", inputs,
                                     self.config.out_dir,
                                     test_loader.dataset.dataset.sample_dirs[test_loader.sampler.data_source.indices[i]],
                                     self.config)
                         save_error_heatmaps(outputs, gts, "Test", str(i)+"_", inputs, self.config.out_dir,
-                            test_loader.dataset.dataset.sample_dirs[test_loader.sampler.data_source.indices[i]],
-                            self.config, loss.item(), loss_fv.item() if self.config.targetType == "both" else None,
-                            loss_T.item() if self.config.targetType == "both" else None)
+                                    test_loader.dataset.dataset.sample_dirs[test_loader.sampler.data_source.indices[i]],
+                                    self.config, loss.item(), loss_fv.item() if self.config.targetType == "both" else None,
+                                    loss_T.item() if self.config.targetType == "both" else None)
                         print5samples += 1
-        test_loss /= len(test_loader)
-        # test_lossb40 /= len(test_loader) if self.config.targetType == "fv" else 1.0
-        # self.logger.info(f"Test Loss before 0: {test_lossb40:.8f}")
+        test_loss /= len(test_loader)        
         self.logger.info(f"Test Loss: {test_loss:.8f}")
-
+        #plot losses 
         self.plotLosses(train_losses, val_losses, test_loss)
         return train_losses, val_losses, test_loss, self
 
     def plotLosses(self, train_losses, val_losses, test_loss):
+        """
+        Plot training and validation losses, and save the plots.
+        Args:
+            train_losses (list): List of training losses per epoch.
+            val_losses (list): List of validation losses per epoch.
+            test_loss (float): Final test loss after training.
+        """
         plt.figure(figsize=(10, 6))
         plt.plot(train_losses, label='Train Loss')
         plt.plot(val_losses, label='Val Loss')
@@ -215,7 +235,8 @@ class CNNencdec(nn.Module):
         plt.tight_layout()
         plt.savefig(os.path.join(self.config.out_dir, "losses.png"))
         plt.close()
-        
+
+        # Same plots, Zoomed in on the y-axis
         plt.figure(figsize=(10, 6))
         plt.plot(train_losses, label='Train Loss')
         plt.plot(val_losses, label='Val Loss')
@@ -226,23 +247,26 @@ class CNNencdec(nn.Module):
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
-        plt.ylim(0, 0.0001)  # Zoom in on the y-axis
+        plt.ylim(0, 0.0001)  
         plt.savefig(os.path.join(self.config.out_dir, "losses_zoom.png"))
         plt.close()
         
-    def show_model_summary(self):
-        try:
-            dummy_input = torch.randn(1, *self.config.input_shape).to(self.config.device)
-            output = self(dummy_input)  # forward pass
-            
-        except Exception as e:
-            self.logger.error(f"Model summary failed: {e}")
-
 
 ### NETWORK MODULES ###
 
 class ResidualBlock(nn.Module):
+    """
+    A basic residual block with two convolutional layers and a skip connection.
+    Used in the encoder part of the CNN.
+    """
     def __init__(self, in_channels, out_channels, stride=1):
+        """
+        Initialize the ResidualBlock.
+        Args:
+            in_channels (int): Number of input channels.
+            out_channels (int): Number of output channels.
+            stride (int): Stride for the first convolutional layer.
+        """
         super().__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, 3, stride, 1, bias=False)
         self.bn1 = nn.BatchNorm2d(out_channels)
@@ -259,6 +283,13 @@ class ResidualBlock(nn.Module):
             )
 
     def forward(self, x):
+        """
+        Forward pass of the residual block. Add skip connection to the output of the second convolutional layer.
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, in_channels, height, width).
+        Returns:    
+            torch.Tensor: Output tensor of shape (batch_size, out_channels, height, width).
+        """
         out = self.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
         out += self.skip(x)
@@ -266,7 +297,15 @@ class ResidualBlock(nn.Module):
 
 
 class Encoder(nn.Module):
+    """
+    CNN Encoder module that extracts features from the input image.
+    It consists of an initial convolutional layer followed by a few residual blocks."""
     def __init__(self, in_channels):
+        """
+        Initialize the Encoder.
+        Args:
+            in_channels (int): Number of input channels (3 for RGB images).
+        """
         super().__init__()
         self.initial = nn.Sequential(
             nn.Conv2d(in_channels, 64, 7, stride=2, padding=3, bias=False),
@@ -284,6 +323,14 @@ class Encoder(nn.Module):
         )
 
     def forward(self, x):
+        """
+        Forward pass of the encoder. Pass the input through the initial layer and then through the residual blocks.
+        Here, we also collect feature maps from each block for adding to the decoder.
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, in_channels, height, width).
+        Returns:
+            tuple: Output tensor of shape (batch_size, 512, height/32, width/32) and a list of feature maps from each block.
+        """
         x0 = self.initial(x)
         features = [x0]
         for block in self.blocks:
@@ -293,10 +340,16 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
+    """
+    CNN Decoder module that reconstructs the output from the encoded features.
+    It consists of several upsampling blocks that progressively increase the spatial dimensions of the feature maps.
+    """
     def __init__(self):
+        """
+        Initialize the Decoder.
+        """
         super().__init__()
         self.up_blocks = nn.ModuleList([
-            # self._up_block(512, 512, 0.1),
             self._up_block(512, 512, 0.2),
             self._up_block(512, 512, 0.3),
             self._up_block(512, 256, 0.3),
@@ -305,14 +358,31 @@ class Decoder(nn.Module):
         ])
 
     def _up_block(self, in_ch, out_ch, dropout=0.2):
+        """
+        Create a single upsampling block with transposed convolution, batch normalization, ReLU activation, and dropout.
+        Args:
+            in_ch (int): Number of input channels.
+            out_ch (int): Number of output channels.
+            dropout (float): Dropout probability for regularization.
+        Returns:
+            nn.Sequential: A sequential block containing the upsampling layers.
+        """
         return nn.Sequential(
             nn.ConvTranspose2d(in_ch, out_ch, 2, stride=2),
             nn.BatchNorm2d(out_ch),
             nn.ReLU(inplace=True),
-            nn.Dropout2d(p=dropout)  # Optional dropout for regularization
+            nn.Dropout2d(p=dropout)  
         )
 
     def forward(self, x, features):
+        """
+        Forward pass of the decoder. Upsample the input feature map and add skip connections from the encoder.
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, 512, height/32, width/32).
+            features (list): List of feature maps from the encoder.
+        Returns:
+            torch.Tensor: Output tensor of shape (batch_size, 64, height, width) after upsampling and skip connections.
+        """
         for i, up in enumerate(self.up_blocks):
             x = up(x)
             if i + 1 < len(features):

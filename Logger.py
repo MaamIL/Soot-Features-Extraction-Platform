@@ -2,7 +2,16 @@ import logging
 import colorlog
 
 class CustomLogger:
+    """
+    Custom logger class to handle logging with color and file output.
+    """
     def __init__(self, log_filename, class_name):
+        """
+        Initialize the logger with a specified filename and class name.
+        Args:
+            log_filename (str): The filename where logs will be saved.
+            class_name (str): The name of the class for which the logger is being created.
+        """
         self.__class__name__ = class_name
         self.logger = logging.getLogger(self.__class__name__)
         self.logger.setLevel(logging.INFO)
@@ -45,5 +54,10 @@ class CustomLogger:
             self.logger.addHandler(file_handler)
 
     def get_logger(self):
+        """
+        Returns a LoggerAdapter with the class name included in log records.
+        Returns:
+            logging.LoggerAdapter: Logger adapter with class name.
+        """
         logger = logging.LoggerAdapter(self.logger, {'class_name': self.__class__name__})
         return logger

@@ -1,10 +1,20 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import torchvision.transforms as transforms
-
 
 def heatmaps(r, z, fvORt, cbar_label, pltTitle, savefile):
+    """
+    Create and save a heatmap of fvORt.
+    This is a help function called from saveheatmaps to visualize the fv or T values.
+    It generates a contour plot with a colorbar and saves it to the specified file.
+    Parameters:
+        r: 1D array of radial positions
+        z: 1D array of axial positions
+        fvORt: 2D array of fv or T values
+        cbar_label: Label for the colorbar
+        pltTitle: Title for the plot
+        savefile: Path to save the heatmap image
+    """
     # Ensure r and z are 1D arrays matching the dimensions of fvORt
     r = np.linspace(0, 1, fvORt.shape[1]) if np.isscalar(r) or len(r) != fvORt.shape[1] else r
     z = np.linspace(0, 1, fvORt.shape[0]) if np.isscalar(z) or len(z) != fvORt.shape[0] else z
@@ -22,6 +32,18 @@ def heatmaps(r, z, fvORt, cbar_label, pltTitle, savefile):
     plt.close()
 
 def saveheatmaps(outputs, gts, epoch, sample_number, inputs, heat_dir, sample_dir, config):
+    """
+    Saves heatmaps of fv and T predictions and ground truths. Saves also input image.
+    Parameters:
+        outputs: (B, 2, H, W) - model predictions
+        gts: (B, 2, H, W) - ground truth maps
+        epoch: int or str - current epoch or "Test"/"Inference"
+        sample_number: str - index or tag for the sample
+        inputs: (B, C, H, W) - original input images
+        heat_dir: str - directory to save heatmaps
+        sample_dir: str - directory of the sample
+        config: config object with normalization info if needed
+    """
     samp_folder = sample_dir[sample_dir.rfind('\\')+1:]
 
     # Convert tensors to CPU and detach for processing
@@ -29,31 +51,21 @@ def saveheatmaps(outputs, gts, epoch, sample_number, inputs, heat_dir, sample_di
     gts = gts[0].cpu().detach()
     inputs = inputs[0].cpu().detach()
     from PIL import Image
-    # Optional image save (only once, epoch=0 or test sample)
-    if epoch == 0 or (epoch == "Test") or (epoch ==  "Inference"):
-        # Save input image
-        # to_pil = transforms.ToPILImage()
-        if inputs.ndimension() == 3 and inputs.shape[0] == 3:
-            # image_array = inputs.cpu().detach().numpy().astype(np.float32)
-            # image_array = (image_array/np.max(image_array))
-            
-            # image = Image.fromarray((image_array * 255).astype(np.uint8)).convert("RGB")
-            # # image = to_pil(inputs).convert("RGB")
-            # image.save(os.path.join(heat_dir, f'{sample_number}_{samp_folder}_Input.jpg'))
-            # Convert from PyTorch tensor (C, H, W) to NumPy array (H, W, C)
+    # Optional image save (only once, epoch=0 or test/Inference sample)
+    if (epoch == 0) or (epoch == "Test") or (epoch == "Inference"):
+        # Save input image        
+        if inputs.ndimension() == 3 and inputs.shape[0] == 3:           
             image_array = inputs.cpu().detach().numpy().astype(np.float32)
             image_array = np.transpose(image_array, (1, 2, 0))  # (H, W, C)
-
             # Normalize to [0, 1] and scale to [0, 255]
             image_array = image_array / np.max(image_array)
             image_uint8 = (image_array * 255).astype(np.uint8)
-
             # Convert to PIL image and save
             image = Image.fromarray(image_uint8).convert("RGB")
             image.save(os.path.join(heat_dir, f'{sample_number}_{samp_folder}_Input.jpg'))
 
         # Save GT heatmaps
-        if gts.shape[0] == 2:
+        if gts.shape[0] == 2: # Assuming we are in both mode- gts has T and Fv
             fv_gt = gts[0].numpy()
             T_gt = gts[1].numpy()
 
@@ -63,7 +75,7 @@ def saveheatmaps(outputs, gts, epoch, sample_number, inputs, heat_dir, sample_di
                 title = f"{sample_number}_Heatmap of {name} ({sample_dir})"
                 savefile = os.path.join(heat_dir, f'{sample_number}_{samp_folder}_{name}.jpg')
                 heatmaps(r, z, arr, cbar, title, savefile)
-        else:
+        else: # Assuming we are in single mode- gts has T or Fv
             arr_gt = gts.numpy()
             r = np.linspace(0, 1, arr_gt.shape[1])
             z = np.linspace(0, 1, arr_gt.shape[0])
@@ -78,7 +90,7 @@ def saveheatmaps(outputs, gts, epoch, sample_number, inputs, heat_dir, sample_di
             heatmaps(r, z, arr_gt, cbarTitle, title, savefile)
 
     # Save predicted heatmaps
-    if preds.shape[0] == 2:
+    if preds.shape[0] == 2: # Assuming we are in both mode- gts has T and Fv
         fv_pred = preds[0].numpy()
         T_pred = preds[1].numpy()
 
@@ -88,7 +100,7 @@ def saveheatmaps(outputs, gts, epoch, sample_number, inputs, heat_dir, sample_di
             title = f"{sample_number}_Heatmap of {name} Epoch {epoch} ({sample_dir})"
             savefile = os.path.join(heat_dir, f'{sample_number}_{samp_folder}_E{epoch}_{name}.jpg')
             heatmaps(r, z, arr, cbar, title, savefile)
-    else:
+    else: # Assuming we are in single mode- gts has T or Fv
         arr_pred = preds[0].numpy()
         r = np.linspace(0, 1, arr_pred.shape[1])
         z = np.linspace(0, 1, arr_pred.shape[0])
@@ -104,8 +116,7 @@ def saveheatmaps(outputs, gts, epoch, sample_number, inputs, heat_dir, sample_di
 
 def save_error_heatmaps(outputs, gts, epoch, sample_id, inputs, out_dir, sample_name, config, loss, loss_fv, loss_T):
     """
-    Saves per-pixel absolute error heatmaps for fv and T.
-
+    Saves per-pixel absolute error heatmaps for fv and T - prediction compared to GT.
     Parameters:
         outputs: (B, 2, H, W) - model predictions
         gts: (B, 2, H, W) - ground truth maps
@@ -115,6 +126,9 @@ def save_error_heatmaps(outputs, gts, epoch, sample_id, inputs, out_dir, sample_
         out_dir: str - base output directory
         sample_name: str - name or path of the sample
         config: config object with normalization info if needed
+        loss: float - overall loss for the sample
+        loss_fv: float - loss for fv predictions
+        loss_T: float - loss for T predictions
     """
     outputs = outputs.detach().cpu().numpy()
     gts = gts.detach().cpu().numpy()
@@ -124,7 +138,6 @@ def save_error_heatmaps(outputs, gts, epoch, sample_id, inputs, out_dir, sample_
     for i in range(batch_size):
         pred = outputs[i]
         gt = gts[i]
-        # input_img = inputs[i]
 
         if config.targetType == "both":
             error_fv = np.abs(pred[0] - gt[0])
@@ -139,7 +152,7 @@ def save_error_heatmaps(outputs, gts, epoch, sample_id, inputs, out_dir, sample_
         fig, axs = plt.subplots(2, 2, figsize=(7, 10))
         # Set the figure title
         fig.suptitle(f"Sample: {sample_id} - Epoch: {epoch} - Loss: {loss:.8f}\n", fontsize=14, color='darkred')
-        # FV error heatmaps
+        # FV error heatmaps (one with fixed scale of 0-1, one with dynamic scale, so it will be easier to see the differences)
         if config.targetType in ["both", "fv"] and error_fv is not None:
             im1 = axs[1][0].imshow(np.flipud(error_fv), cmap='hot', vmin=0, vmax=np.max(error_fv) if np.max(error_fv) > 0 else 1)
             axs[1][0].set_title(f"Error Heatmap - fv - Loss: {loss_fv:.8f}")
@@ -151,7 +164,7 @@ def save_error_heatmaps(outputs, gts, epoch, sample_id, inputs, out_dir, sample_
             axs[1][0].axis('off')
             axs[1][1].axis('off')
 
-        # T error heatmaps
+        # T error heatmaps (one with fixed scale of 0-1, one with dynamic scale, so it will be easier to see the differences)
         if config.targetType in ["both", "T"] and error_T is not None:
             im3 = axs[0][0].imshow(np.flipud(error_T), cmap='hot', vmin=0, vmax=np.max(error_T) if np.max(error_T) > 0 else 1)
             axs[0][0].set_title(f"Error Heatmap - T - Loss: {loss_T:.8f}")
@@ -170,65 +183,4 @@ def save_error_heatmaps(outputs, gts, epoch, sample_id, inputs, out_dir, sample_
         plt.tight_layout()
         plt.savefig(os.path.join(out_dir, f"{sample_id}_{os.path.basename(sample_name)}_E{epoch}_ErrorMaps.png"))
         plt.close()
-        # # fig, axs = plt.subplots(2, 2, figsize=(10, 4))
         
-       
-        # # if config.targetType == "both" or config.targetType == "fv":
-        # #     im1 = axs[0][0].imshow(np.flipud(error_fv), cmap='hot', vmin=0, vmax=np.max(error_fv))
-        # #     axs[0][0].set_title(f"Error Heatmap - fv - {loss:.8f}")            
-        # #     fig.colorbar(im1, ax=axs[0][0])
-        # #     im2 = axs[0][1].imshow(np.flipud(error_fv), cmap='hot', vmin=0, vmax=1)
-        # #     # axs[1].set_title(f"Error Heatmap - fv - {loss:.8f}")            
-        # #     fig.colorbar(im2, ax=axs[0][1])
-
-        
-        
-        # # if config.targetType == "both" or config.targetType == "T":
-        # #     im3 = axs[1][0].imshow(np.flipud(error_T), cmap='hot', vmin=0, vmax=1)
-        # #     axs[1][0].set_title(f"Error Heatmap - T - {loss:.8f}")
-        # #     fig.colorbar(im3, ax=axs[1][0])
-        # #     im4 = axs[1][1].imshow(np.flipud(error_T), cmap='hot', vmin=0, vmax=np.max(error_T))
-        # #     # axs[3].set_title(f"Error Heatmap - T - {loss:.8f}")
-        # #     fig.colorbar(im4, ax=axs[1][1])
-
-        # # for ax in axs:
-        # #     ax.axis('off')
-
-        # # os.makedirs(os.path.join(out_dir, "error_maps"), exist_ok=True)
-        # plt.tight_layout()
-        # # plt.savefig(os.path.join(out_dir, "error_maps", f"{epoch}_{sample_id}_{os.path.basename(sample_name)}_error.png"))
-        # plt.savefig(os.path.join(out_dir, f"{sample_id}_{os.path.basename(sample_name)}_E{epoch}_ErrorMaps.png"))
-        # plt.close()
-
-# def saveheatmaps(outputs, gts, epoch, sample_number, inputs, heat_dir, sample_dir,config):
-#     # On epoch 0, save gt heatmaps and the input image.
-#     samp_folder = sample_dir[sample_dir.rfind('\\')+1:]
-#     if epoch == 0 and (("stage1" in sample_number) or ("test" in sample_number)):
-#         gts = gts[0].view(config.output_shape[0], config.output_shape[1])
-#         fv_gt = gts.cpu().numpy()
-
-#         r = fv_gt.shape[1]
-#         z = fv_gt.shape[0]
-#         title = f"{sample_number}_Heatmap of $Fv(r, z)$ GT ({sample_dir})"
-#         cbarTitle = '$Fv(r, z)$ [ppm]'
-#         savefile = os.path.join(heat_dir, f'{sample_number}_{samp_folder}_GT.jpg')
-#         heatmaps(r, z, fv_gt, cbarTitle, title, savefile)
-
-#         # Save input image
-#         inputs = inputs[0].cpu().detach()
-#         if inputs.ndimension() == 4:
-#             inputs = inputs.squeeze(0)
-#         to_pil = transforms.ToPILImage().Im
-#         image = to_pil(inputs)
-#         image.save(os.path.join(heat_dir, f'{sample_number}_{samp_folder}_Input.jpg'))
-    
-#     # Save prediction heatmaps for current epoch.
-#     preds = outputs[0].view(config.output_shape[0], config.output_shape[1])
-#     fv_pred = preds.cpu().numpy()
-
-#     r = fv_pred.shape[1]
-#     z = fv_pred.shape[0]
-#     title = f"{sample_number}_Heatmap of $Fv(r, z)$ Epoch: {epoch}  ({sample_dir})"
-#     cbarTitle = '$Fv(r, z)$ [ppm]'
-#     savefile = os.path.join(heat_dir, f'{sample_number}_{samp_folder}_E{epoch}.jpg')
-#     heatmaps(r, z, fv_pred, cbarTitle, title, savefile)
