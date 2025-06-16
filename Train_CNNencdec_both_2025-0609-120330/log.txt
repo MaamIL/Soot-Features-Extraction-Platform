@@ -1,0 +1,152 @@
+2025-06-09 12:03:30,640 - INFO - Config - Logging to Outputs_CNNencdec_both_2025-0609-120330\log.txt
+                                          Log Format: %(asctime)s - %(levelname)s - %(name)s - %(message)s
+2025-06-09 12:03:30,640 - INFO - Config - 
+
+~~~~~~~~~~~~~~Configuration settings~~~~~~~~~~~~~~~~~
+paramsType2 = ~~~~~Params for dataset creation~~~~~
+root_dir = C:/Users/User/Documents/GenerateData/GeneratedData
+global_img_min = 0.0
+global_img_max = 19941.026744724255
+global_T_min = 299.0
+global_T_max = 2828.0
+global_fv_min = 0.0
+global_fv_max = 11.224797513519933
+Fvmax_height = 808
+Fvmax_width = 213
+Imagemax_height = 808
+Imagemax_width = 213
+input_shape = (3, 808, 213)
+output_shape = (808, 213)
+targetType = both
+isNorm = True
+setImgValZero = 0
+setFvValZero = 0.01
+setTValZero = 1000.0
+paramsType3 = ~~~~~Params for model training~~~~~
+model_name = CNNencdec
+batch_size = 12
+criterion = MSELoss()
+lr = 0.0001
+num_epochs = 300
+epochs_remark = Patience of 15 epochs
+device = cuda
+optimizer = torch.optim.Adam(self.parameters(), lr=self.config.lr)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.config.optimizer, mode='min', factor=0.3, patience=3)
+paramsType1 = ~~~~~Params for outputs and logging~~~~~
+out_dir = Outputs_CNNencdec_both_2025-0609-120330
+log_filename = Outputs_CNNencdec_both_2025-0609-120330\log.txt
+logger = <LoggerAdapter Config (INFO)>
+savePlots = True
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+2025-06-09 12:03:30,656 - INFO - __main__ - Running in training mode...
+2025-06-09 12:03:30,656 - INFO - __main__ - Creating dataset...
+2025-06-09 12:03:30,656 - INFO - FlameDataset - FlameDataset initialized with the provided configuration
+2025-06-09 12:03:30,965 - INFO - FlameDataset - Found 11868 samples in the dataset.
+2025-06-09 12:03:30,965 - INFO - Config - ~~~~~~~~~~~~
+Dataset sizes: 
+Train: 8307 
+Validation: 2375 
+Test: 1186
+~~~~~~~~~~~~~~~~
+2025-06-09 12:03:30,965 - INFO - __main__ - Running model...
+2025-06-09 12:03:31,038 - INFO - CNNencdec - 
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        Model 'CNNencdec' initialized on cuda
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        
+2025-06-09 12:12:35,505 - INFO - CNNencdec - Epoch 1, lr: 0.0001, Train Loss: 0.02768019, Val Loss: 0.00519655 (best: inf)
+2025-06-09 12:12:35,585 - INFO - CNNencdec - Best model saved with val loss: 0.00519655
+2025-06-09 12:19:17,619 - INFO - CNNencdec - Epoch 2, lr: 0.0001, Train Loss: 0.00333163, Val Loss: 0.00165702 (best: 0.00519655)
+2025-06-09 12:19:17,680 - INFO - CNNencdec - Best model saved with val loss: 0.00165702
+2025-06-09 12:25:48,019 - INFO - CNNencdec - Epoch 3, lr: 0.0001, Train Loss: 0.00138128, Val Loss: 0.00270839 (best: 0.00165702)
+2025-06-09 12:32:17,784 - INFO - CNNencdec - Epoch 4, lr: 0.0001, Train Loss: 0.00081595, Val Loss: 0.00091124 (best: 0.00165702)
+2025-06-09 12:32:17,836 - INFO - CNNencdec - Best model saved with val loss: 0.00091124
+2025-06-09 12:40:26,615 - INFO - CNNencdec - Epoch 5, lr: 0.0001, Train Loss: 0.00057785, Val Loss: 0.00046951 (best: 0.00091124)
+2025-06-09 12:40:26,673 - INFO - CNNencdec - Best model saved with val loss: 0.00046951
+2025-06-09 12:47:59,619 - INFO - CNNencdec - Epoch 6, lr: 0.0001, Train Loss: 0.00044372, Val Loss: 0.00030577 (best: 0.00046951)
+2025-06-09 12:47:59,675 - INFO - CNNencdec - Best model saved with val loss: 0.00030577
+2025-06-09 12:55:29,914 - INFO - CNNencdec - Epoch 7, lr: 0.0001, Train Loss: 0.00035657, Val Loss: 0.00022962 (best: 0.00030577)
+2025-06-09 12:55:29,959 - INFO - CNNencdec - Best model saved with val loss: 0.00022962
+2025-06-09 13:03:19,765 - INFO - CNNencdec - Epoch 8, lr: 0.0001, Train Loss: 0.00030266, Val Loss: 0.00021843 (best: 0.00022962)
+2025-06-09 13:03:19,827 - INFO - CNNencdec - Best model saved with val loss: 0.00021843
+2025-06-09 13:09:30,838 - INFO - CNNencdec - Epoch 9, lr: 0.0001, Train Loss: 0.00027115, Val Loss: 0.00018145 (best: 0.00021843)
+2025-06-09 13:09:30,907 - INFO - CNNencdec - Best model saved with val loss: 0.00018145
+2025-06-09 13:15:37,585 - INFO - CNNencdec - Epoch 10, lr: 0.0001, Train Loss: 0.00024913, Val Loss: 0.00021053 (best: 0.00018145)
+2025-06-09 13:22:02,941 - INFO - CNNencdec - Epoch 11, lr: 0.0001, Train Loss: 0.00023079, Val Loss: 0.00016973 (best: 0.00018145)
+2025-06-09 13:22:03,018 - INFO - CNNencdec - Best model saved with val loss: 0.00016973
+2025-06-09 13:28:07,479 - INFO - CNNencdec - Epoch 12, lr: 0.0001, Train Loss: 0.00021588, Val Loss: 0.00020018 (best: 0.00016973)
+2025-06-09 13:34:15,359 - INFO - CNNencdec - Epoch 13, lr: 0.0001, Train Loss: 0.00020415, Val Loss: 0.00021524 (best: 0.00016973)
+2025-06-09 13:41:37,689 - INFO - CNNencdec - Epoch 14, lr: 0.0001, Train Loss: 0.00019526, Val Loss: 0.00017443 (best: 0.00016973)
+2025-06-09 13:48:41,235 - INFO - CNNencdec - Epoch 15, lr: 0.0001, Train Loss: 0.00018700, Val Loss: 0.00014200 (best: 0.00016973)
+2025-06-09 13:48:41,312 - INFO - CNNencdec - Best model saved with val loss: 0.00014200
+2025-06-09 13:55:05,287 - INFO - CNNencdec - Epoch 16, lr: 0.0001, Train Loss: 0.00017838, Val Loss: 0.01452141 (best: 0.00014200)
+2025-06-09 14:01:35,416 - INFO - CNNencdec - Epoch 17, lr: 0.0001, Train Loss: 0.00016993, Val Loss: 0.00118339 (best: 0.00014200)
+2025-06-09 14:08:32,503 - INFO - CNNencdec - Epoch 18, lr: 0.0001, Train Loss: 0.00016340, Val Loss: 0.00013865 (best: 0.00014200)
+2025-06-09 14:08:32,580 - INFO - CNNencdec - Best model saved with val loss: 0.00013865
+2025-06-09 14:15:01,118 - INFO - CNNencdec - Epoch 19, lr: 0.0001, Train Loss: 0.00015764, Val Loss: 0.00224639 (best: 0.00013865)
+2025-06-09 14:21:32,414 - INFO - CNNencdec - Epoch 20, lr: 0.0001, Train Loss: 0.00015086, Val Loss: 0.00016278 (best: 0.00013865)
+2025-06-09 14:29:18,287 - INFO - CNNencdec - Epoch 21, lr: 0.0001, Train Loss: 0.00014473, Val Loss: 0.00017944 (best: 0.00013865)
+2025-06-09 14:35:37,105 - INFO - CNNencdec - Epoch 22, lr: 0.0001, Train Loss: 0.00014031, Val Loss: 0.00013520 (best: 0.00013865)
+2025-06-09 14:35:37,181 - INFO - CNNencdec - Best model saved with val loss: 0.00013520
+2025-06-09 14:41:56,311 - INFO - CNNencdec - Epoch 23, lr: 0.0001, Train Loss: 0.00013599, Val Loss: 0.00013618 (best: 0.00013520)
+2025-06-09 14:48:12,390 - INFO - CNNencdec - Epoch 24, lr: 0.0001, Train Loss: 0.00013299, Val Loss: 0.00017058 (best: 0.00013520)
+2025-06-09 14:54:26,296 - INFO - CNNencdec - Epoch 25, lr: 0.0001, Train Loss: 0.00012693, Val Loss: 0.00011269 (best: 0.00013520)
+2025-06-09 14:54:26,372 - INFO - CNNencdec - Best model saved with val loss: 0.00011269
+2025-06-09 15:00:41,715 - INFO - CNNencdec - Epoch 26, lr: 0.0001, Train Loss: 0.00012452, Val Loss: 0.00014427 (best: 0.00011269)
+2025-06-09 15:06:55,338 - INFO - CNNencdec - Epoch 27, lr: 0.0001, Train Loss: 0.00012065, Val Loss: 0.00178441 (best: 0.00011269)
+2025-06-09 15:13:03,817 - INFO - CNNencdec - Epoch 28, lr: 0.0001, Train Loss: 0.00011623, Val Loss: 0.00020052 (best: 0.00011269)
+2025-06-09 15:19:14,532 - INFO - CNNencdec - Epoch 29, lr: 0.0001, Train Loss: 0.00011282, Val Loss: 0.00063959 (best: 0.00011269)
+2025-06-09 15:25:29,157 - INFO - CNNencdec - Epoch 30, lr: 3e-05, Train Loss: 0.00009477, Val Loss: 0.00011242 (best: 0.00011269)
+2025-06-09 15:25:29,214 - INFO - CNNencdec - Best model saved with val loss: 0.00011242
+2025-06-09 15:32:04,326 - INFO - CNNencdec - Epoch 31, lr: 3e-05, Train Loss: 0.00008977, Val Loss: 0.00010310 (best: 0.00011242)
+2025-06-09 15:32:04,386 - INFO - CNNencdec - Best model saved with val loss: 0.00010310
+2025-06-09 15:38:17,710 - INFO - CNNencdec - Epoch 32, lr: 3e-05, Train Loss: 0.00008725, Val Loss: 0.00010079 (best: 0.00010310)
+2025-06-09 15:38:17,770 - INFO - CNNencdec - Best model saved with val loss: 0.00010079
+2025-06-09 15:44:28,583 - INFO - CNNencdec - Epoch 33, lr: 3e-05, Train Loss: 0.00008573, Val Loss: 0.00011509 (best: 0.00010079)
+2025-06-09 15:51:26,771 - INFO - CNNencdec - Epoch 34, lr: 3e-05, Train Loss: 0.00008365, Val Loss: 0.00010399 (best: 0.00010079)
+2025-06-09 15:58:47,899 - INFO - CNNencdec - Epoch 35, lr: 3e-05, Train Loss: 0.00008222, Val Loss: 0.00010326 (best: 0.00010079)
+2025-06-09 16:05:00,658 - INFO - CNNencdec - Epoch 36, lr: 3e-05, Train Loss: 0.00008070, Val Loss: 0.00011906 (best: 0.00010079)
+2025-06-09 16:11:10,525 - INFO - CNNencdec - Epoch 37, lr: 9e-06, Train Loss: 0.00007473, Val Loss: 0.00010365 (best: 0.00010079)
+2025-06-09 16:17:22,829 - INFO - CNNencdec - Epoch 38, lr: 9e-06, Train Loss: 0.00007369, Val Loss: 0.00010063 (best: 0.00010079)
+2025-06-09 16:17:22,901 - INFO - CNNencdec - Best model saved with val loss: 0.00010063
+2025-06-09 16:23:34,981 - INFO - CNNencdec - Epoch 39, lr: 9e-06, Train Loss: 0.00007292, Val Loss: 0.00010113 (best: 0.00010063)
+2025-06-09 16:29:45,196 - INFO - CNNencdec - Epoch 40, lr: 9e-06, Train Loss: 0.00007189, Val Loss: 0.00010238 (best: 0.00010063)
+2025-06-09 16:36:09,020 - INFO - CNNencdec - Epoch 41, lr: 9e-06, Train Loss: 0.00007150, Val Loss: 0.00010061 (best: 0.00010063)
+2025-06-09 16:36:09,079 - INFO - CNNencdec - Best model saved with val loss: 0.00010061
+2025-06-09 16:42:23,998 - INFO - CNNencdec - Epoch 42, lr: 9e-06, Train Loss: 0.00007126, Val Loss: 0.00010494 (best: 0.00010061)
+2025-06-09 16:48:37,467 - INFO - CNNencdec - Epoch 43, lr: 9e-06, Train Loss: 0.00007060, Val Loss: 0.00010135 (best: 0.00010061)
+2025-06-09 16:54:49,300 - INFO - CNNencdec - Epoch 44, lr: 9e-06, Train Loss: 0.00007001, Val Loss: 0.00010350 (best: 0.00010061)
+2025-06-09 17:01:03,504 - INFO - CNNencdec - Epoch 45, lr: 9e-06, Train Loss: 0.00006960, Val Loss: 0.00010234 (best: 0.00010061)
+2025-06-09 17:07:17,929 - INFO - CNNencdec - Epoch 46, lr: 2.7e-06, Train Loss: 0.00006799, Val Loss: 0.00010173 (best: 0.00010061)
+2025-06-09 17:13:30,348 - INFO - CNNencdec - Epoch 47, lr: 2.7e-06, Train Loss: 0.00006775, Val Loss: 0.00010078 (best: 0.00010061)
+2025-06-09 17:19:42,206 - INFO - CNNencdec - Epoch 48, lr: 2.7e-06, Train Loss: 0.00006733, Val Loss: 0.00010097 (best: 0.00010061)
+2025-06-09 17:25:53,729 - INFO - CNNencdec - Epoch 49, lr: 2.7e-06, Train Loss: 0.00006748, Val Loss: 0.00010027 (best: 0.00010061)
+2025-06-09 17:25:53,791 - INFO - CNNencdec - Best model saved with val loss: 0.00010027
+2025-06-09 17:32:07,274 - INFO - CNNencdec - Epoch 50, lr: 2.7e-06, Train Loss: 0.00006665, Val Loss: 0.00010065 (best: 0.00010027)
+2025-06-09 17:38:41,909 - INFO - CNNencdec - Epoch 51, lr: 2.7e-06, Train Loss: 0.00006667, Val Loss: 0.00010169 (best: 0.00010027)
+2025-06-09 17:44:55,707 - INFO - CNNencdec - Epoch 52, lr: 2.7e-06, Train Loss: 0.00006657, Val Loss: 0.00010053 (best: 0.00010027)
+2025-06-09 17:51:10,646 - INFO - CNNencdec - Epoch 53, lr: 2.7e-06, Train Loss: 0.00006677, Val Loss: 0.00010173 (best: 0.00010027)
+2025-06-09 17:57:23,473 - INFO - CNNencdec - Epoch 54, lr: 8.1e-07, Train Loss: 0.00006632, Val Loss: 0.00010100 (best: 0.00010027)
+2025-06-09 18:03:37,245 - INFO - CNNencdec - Epoch 55, lr: 8.1e-07, Train Loss: 0.00006624, Val Loss: 0.00010123 (best: 0.00010027)
+2025-06-09 18:09:50,643 - INFO - CNNencdec - Epoch 56, lr: 8.1e-07, Train Loss: 0.00006604, Val Loss: 0.00010075 (best: 0.00010027)
+2025-06-09 18:16:03,137 - INFO - CNNencdec - Epoch 57, lr: 8.1e-07, Train Loss: 0.00006619, Val Loss: 0.00010142 (best: 0.00010027)
+2025-06-09 18:22:15,443 - INFO - CNNencdec - Epoch 58, lr: 2.43e-07, Train Loss: 0.00006578, Val Loss: 0.00010110 (best: 0.00010027)
+2025-06-09 18:28:30,746 - INFO - CNNencdec - Epoch 59, lr: 2.43e-07, Train Loss: 0.00006564, Val Loss: 0.00010094 (best: 0.00010027)
+2025-06-09 18:34:43,900 - INFO - CNNencdec - Epoch 60, lr: 2.43e-07, Train Loss: 0.00006583, Val Loss: 0.00010055 (best: 0.00010027)
+2025-06-09 18:41:12,715 - INFO - CNNencdec - Epoch 61, lr: 2.43e-07, Train Loss: 0.00006572, Val Loss: 0.00010105 (best: 0.00010027)
+2025-06-09 18:47:28,161 - INFO - CNNencdec - Epoch 62, lr: 7.29e-08, Train Loss: 0.00006593, Val Loss: 0.00010143 (best: 0.00010027)
+2025-06-09 18:53:41,904 - INFO - CNNencdec - Epoch 63, lr: 7.29e-08, Train Loss: 0.00006576, Val Loss: 0.00010056 (best: 0.00010027)
+2025-06-09 18:59:53,006 - INFO - CNNencdec - Epoch 64, lr: 7.29e-08, Train Loss: 0.00006562, Val Loss: 0.00010124 (best: 0.00010027)
+2025-06-09 18:59:53,006 - INFO - CNNencdec - Early stopping at epoch 64 due to no improvement in val loss for 15 epochs.
+2025-06-09 18:59:53,006 - INFO - CNNencdec - 
+
+Testing model on Best model saved with val loss: 0.00010027
+2025-06-09 19:00:49,005 - INFO - CNNencdec - Test Loss: 0.00010259
+2025-06-09 19:00:49,228 - INFO - __main__ - Model 'CNNencdec' trained successfully.
+2025-06-09 19:00:49,228 - INFO - __main__ - Best model parameters:
+~~~~~~~~~~~~~~~
+<generator object Module.parameters at 0x000002C9ACD8BE60>
+ saved to Outputs_CNNencdec_both_2025-0609-120330\best_model.pth
+2025-06-09 19:00:49,431 - INFO - __main__ - Loss plots saved to Outputs_CNNencdec_both_2025-0609-120330\losses.png
