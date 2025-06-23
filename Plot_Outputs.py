@@ -31,8 +31,9 @@ def heatmaps(r, z, fvORt, cbar_label, pltTitle, savefile):
     plt.title(pltTitle)
     plt.savefig(savefile)
     plt.close()
+from scipy.io import loadmat
 
-def save_inputImages(inputs, sample_number, heat_dir, samp_folder):
+def save_inputImages(inputs, sample_number, heat_dir, samp_folder, isImgFlipped, rootdir):
     # Save input image        
         if inputs.ndimension() == 3 and inputs.shape[0] == 3:           
             image_array = inputs.cpu().detach().numpy().astype(np.float32)
@@ -40,9 +41,23 @@ def save_inputImages(inputs, sample_number, heat_dir, samp_folder):
             # Normalize to [0, 1] and scale to [0, 255]
             image_array = image_array / np.max(image_array)
             image_uint8 = (image_array * 255).astype(np.uint8)
+            # if not isImgFlipped:  # if image of flame was flipped - flip back
+            #     image_uint8 = np.flipud(image_uint8)
             # Convert to PIL image and save
             image = Image.fromarray(image_uint8).convert("RGB")
             image.save(os.path.join(heat_dir, f'{sample_number}_{samp_folder}_Input.jpg'))
+    #save original image (might be different due to flips, crop to size, etc.)
+        cfd_path = os.path.join(rootdir, samp_folder, "CFDImage.mat")
+        cfd_mat = loadmat(cfd_path)
+        image_array = cfd_mat["CFDImage"].astype(np.float32)        
+        # Normalize to [0, 1] and scale to [0, 255]
+        image_array = image_array / np.max(image_array)
+        image_uint8 = (image_array * 255).astype(np.uint8)
+        # if not isImgFlipped:  # if image of flame was flipped - flip back
+        #     image_uint8 = np.flipud(image_uint8)
+        # Convert to PIL image and save
+        image = Image.fromarray(image_uint8).convert("RGB")
+        image.save(os.path.join(heat_dir, f'{sample_number}_{samp_folder}_OrigImage.jpg'))
 
 def save_csv(filename, data):
     """Save data to a CSV file.
@@ -76,7 +91,7 @@ def saveheatmaps(outputs, gts, epoch, sample_number, inputs, heat_dir, sample_di
     # Optional image save (only once, epoch=0 or test/TestSingle sample)
     if (epoch == 0) or (epoch == "Test") or (epoch == "TestSingle"):
         # Save input image        
-        save_inputImages(inputs, sample_number, heat_dir, samp_folder)
+        save_inputImages(inputs, sample_number, heat_dir, samp_folder, config.isImgFlipped, config.root_dir)
 
         # Save GT heatmaps
         if gts.shape[0] == 2: # Assuming we are in both mode- gts has T and Fv
