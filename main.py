@@ -26,9 +26,9 @@ class Config:
         """
         #Params for dataset creation    
         self.paramsType2 = "~~~~~Params for dataset creation~~~~~"
-        self.root_dir = 'C:/Users/User/Documents/GenerateData/GeneratedData'  # Path to your dataset GeneratedData / GeneratedData_Extra / try / GeneratedData_Inference / GeneratedData_SingleTest
+        self.root_dir = 'C:/Users/User/Documents/GenerateData/GeneratedData_Inference'  # Path to your dataset GeneratedData / GeneratedData_Extra / try / GeneratedData_Inference / GeneratedData_SingleTest
         self.modelpath = os.path.join('C:/Users/User/Documents/Sooth_Features_Extraction_plat/Train_CNNencdec_both_2025-0609-120330', 'best_flame_model.pth')
-        self.MODE = "Train"  # Set to "Train" or "SingleTest" or "Inference" MODE as needed (train- train the model, test- load and test the model on a single sample (input-output), inference- load model and run inference on a single sample (input only))
+        self.MODE = "Inference"  # Set to "Train" or "SingleTest" or "Inference" MODE as needed (train- train the model, test- load and test the model on a single sample (input-output), inference- load model and run inference on a single sample (input only))
         ##Data for GeneratedData without image values>20000 or values<0
         self.global_img_min = 0.0
         self.global_img_max = 19941.026744724255
@@ -321,7 +321,9 @@ if __name__ == "__main__":
             inputs=image_tensor[0].cpu().detach(),
             sample_number=sample_id,
             heat_dir=config.out_dir,
-            samp_folder=sample_path[sample_path.rfind('\\')+1:]
+            samp_folder=sample_path[sample_path.rfind('\\')+1:],
+            isImgFlipped = config.isImgFlipped, 
+            rootdir = config.root_dir
         )
         # Save heatmaps
         saveheatmaps(

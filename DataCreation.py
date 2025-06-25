@@ -242,7 +242,7 @@ class FlameDataset(Dataset):
         last_widths = [np.count_nonzero(row) for row in last_rows]
         last_max_width = max(last_widths)
 
-        return last_max_width > first_max_width # we want image upside down (top of flame (image) is wider)
+        return last_max_width >= first_max_width # we want image upside down (top of flame (image) is wider)
         # return first_max_width > last_max_width  # we want image right side up (bottom of flame (image) is wider)  
         
     def _getImage_(self, sample_dir):
@@ -259,7 +259,7 @@ class FlameDataset(Dataset):
          # Check if the image should be flipped
         if self.if_needsFlipud(image_array): #if image of flame should be flipped
             if self.config.MODE != "Train":
-                self.logger.warning(f"Image at {sample_dir} is upside down, flipping it.")
+                self.logger.warning(f"Image at {sample_dir} is right side up, flipping it.")
             
             self.config.isImgFlipped = True
             image_array = np.flipud(image_array)  # Flip the image array vertically
