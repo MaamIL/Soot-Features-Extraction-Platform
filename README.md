@@ -63,7 +63,9 @@ The dataset consists of:
   - **Fv** – Soot volume fractions
   - **T** – Temperature
 
-![img1](img1)
+<div align="center">
+  <img src="pics for documentation\flames1.png" alt="flame" width = 400>
+</div>
 
 More info regarding the data and dataset creation as well as the outputs and summaries can be found in chapters below, under the chosen CNN DL network.
 
@@ -93,7 +95,7 @@ Specifically, I designed a CNN-based encoder-decoder architecture that maps a fl
 This framework demonstrates the feasibility of real-time, non-intrusive estimation of combustion properties from visual data, offering potential applications in combustion diagnostics, process monitoring, and intelligent control systems
 
 <div align="center">
-  <img src="pics for documentation\cnnflow.png" alt="CNN Flow">
+  <img src="pics for documentation\cnnflow.png" alt="CNN Flow" width=600>
 </div>
 
 ---
@@ -126,8 +128,8 @@ Training Procedure:
 ### Configuration
 
 **Loss Function**
-<div align="center">
-  <img src="pics for documentation\mse.png" alt="mse">
+<div align="left">
+  <img src="pics for documentation\mse.png" alt="mse" width=300>
 </div>
 
 The loss is calculated for T and Fv separately, then combined in weight of 50% each:
