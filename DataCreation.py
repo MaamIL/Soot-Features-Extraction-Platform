@@ -147,7 +147,7 @@ class FlameDataset(Dataset):
             mode='constant',
             constant_values=0
         )
-        if self.config.MODE != "Train":
+        if self.config.MODE != "Train" and self.config.MODE != "TrainSaveAllData":
             self.logger.info(f"Padded/Cropped {tORfv} to shape: {arr.shape} from original shape: {(orig_H, orig_W)} to target shape: {target_shape}")
             self.logger.info(f"minimum value in {tORfv} array: {np.min(arr[arr > 0])}, maximum value: {np.max(arr)}")
         return arr
@@ -169,10 +169,11 @@ class FlameDataset(Dataset):
         orig_H, orig_W, orig_C = H, W, C
         # --- CROP FROM MARGINS IF TOO BIG ---
         if H > target_H:
-            # Crop zero rows from top and bottom
+            # Crop zero rows from top and bottom- comment this in order to get the "lower" flame (without taking out zeros from the base)
             while H > target_H and np.all(image_array[0, :, :] == 0):
                 image_array = image_array[1:, :, :]
                 H -= 1
+            
             while H > target_H and np.all(image_array[-1, :, :] == 0):
                 image_array = image_array[:-1, :, :]
                 H -= 1
@@ -208,9 +209,10 @@ class FlameDataset(Dataset):
             mode='constant',
             constant_values=0
         )
-        if self.config.MODE != "Train":
+        if self.config.MODE != "Train" and self.config.MODE != "TrainSaveAllData":
             self.logger.info(f"Padded/Cropped image to shape: {image_array.shape} from original shape: {(orig_H, orig_W, orig_C)} to target shape: {target_shape}")
             self.logger.info(f"minimum value in image array: {np.min(image_array[image_array > 0])}, maximum value: {np.max(image_array)}")
+            
         return image_array
 
     def if_needsFlipud(self, image_array, num_rows=3):
@@ -256,9 +258,10 @@ class FlameDataset(Dataset):
         cfd_path = os.path.join(sample_dir, "CFDImage.mat")
         cfd_mat = sio.loadmat(cfd_path)
         image_array = cfd_mat["CFDImage"].astype(np.float32)
+        # image_array = cfd_mat["CFDImageOut"].astype(np.float32)
          # Check if the image should be flipped
         if self.if_needsFlipud(image_array): #if image of flame should be flipped
-            if self.config.MODE != "Train":
+            if self.config.MODE != "Train" and self.config.MODE != "TrainSaveAllData":
                 self.logger.warning(f"Image at {sample_dir} is right side up, flipping it.")
             
             self.config.isImgFlipped = True

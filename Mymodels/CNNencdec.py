@@ -1,4 +1,4 @@
-
+import numpy as np
 from Logger import CustomLogger
 import matplotlib.pyplot as plt
 import os
@@ -35,7 +35,7 @@ class CNNencdec(nn.Module):
         self.config.optimizer = torch.optim.Adam(self.parameters(), lr=self.config.lr)
           # scheduler- reduce lr in case of plateau in validation loss (no improvements after *patience* epochs), then learning rate will be reduced: new_lr = lr * factor
         self.config.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.config.optimizer, mode='min', factor=0.3, patience=3) 
-     
+        # self.config.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.config.optimizer, T_max=self.config.num_epochs, eta_min=0.000001)
         self.logger.info(f"""
         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         Model '{config.model_name}' initialized on {config.device}
@@ -61,6 +61,43 @@ class CNNencdec(nn.Module):
 
         return out
 
+    def save_predictions_from_loader(self, loader, dataset_name):
+        # self.eval()
+        # self.load_state_dict(torch.load(os.path.join(self.config.out_dir, "best_flame_model.pth")))
+        csvdir = os.path.join(self.config.out_dir, f"csv_data_best_{dataset_name}")
+        os.makedirs(csvdir, exist_ok=True)
+
+        self.eval()
+        with torch.no_grad():
+            for batch_i, (inputs, gts) in enumerate(tqdm(loader, desc=f"Saving {dataset_name} predictions")):
+                inputs = inputs.to(self.config.device)
+                gts = gts.to(self.config.device)
+                outputs = self(inputs)
+
+                # Get base dataset and indices
+                dataset = loader.dataset
+                if hasattr(dataset, 'dataset') and hasattr(dataset, 'indices'):
+                    base_dataset = dataset.dataset
+                    indices = dataset.indices
+                else:
+                    base_dataset = dataset
+                    indices = list(range(len(dataset)))
+
+                batch_size = inputs.shape[0]
+
+                for j in range(batch_size):
+                    sample_idx = indices[batch_i * loader.batch_size + j]
+                    sample_name = os.path.basename(base_dataset.sample_dirs[sample_idx])
+
+                    gt = gts[j].detach().cpu().numpy()
+                    output = outputs[j].detach().cpu().numpy()
+
+                    np.savetxt(os.path.join(csvdir, f"{sample_name}_gt_Fv_{dataset_name}.csv"), gt[0], delimiter=",", fmt="%.6f")
+                    np.savetxt(os.path.join(csvdir, f"{sample_name}_gt_T_{dataset_name}.csv"), gt[1], delimiter=",", fmt="%.6f")
+                    np.savetxt(os.path.join(csvdir, f"{sample_name}_pred_Fv_{dataset_name}.csv"), output[0], delimiter=",", fmt="%.6f")
+                    np.savetxt(os.path.join(csvdir, f"{sample_name}_pred_T_{dataset_name}.csv"), output[1], delimiter=",", fmt="%.6f")
+
+
     def train_model(self, train_loader, val_loader, test_loader):
         """
         Train the model using the provided data loaders.
@@ -84,7 +121,8 @@ class CNNencdec(nn.Module):
             running_loss = 0.0
             #use tqdm for progress bar
             with tqdm(train_loader, desc=f"Epoch {epoch+1}/{self.config.num_epochs} [Train]") as pbar:
-                for inputs, gts in pbar:
+                # for inputs, gts in pbar:
+                for i, (inputs, gts) in enumerate(pbar):
                     inputs = inputs.to(self.config.device)
                     gts = gts.to(self.config.device)
 
@@ -104,7 +142,27 @@ class CNNencdec(nn.Module):
                     self.config.optimizer.step()
 
                     running_loss += loss.item()
-                    pbar.set_postfix({"loss": loss.item()})                    
+                    pbar.set_postfix({"loss": loss.item()})   
+                    # #save csv files (done for retreiving data for plotting) only for mode "TrainSaveAllData"                
+                    # if self.config.MODE == "TrainSaveAllData":
+                    #     
+                    #     csvdir = os.path.join(self.config.out_dir, "csv_data")
+                    #     sample_name = os.path.basename(train_loader.dataset.dataset.sample_dirs[train_loader.sampler.data_source.indices[i]])
+                    #     if epoch == 0:
+                    #         os.makedirs(self.config.out_dir, exist_ok=True)                            
+                    #         os.makedirs(csvdir, exist_ok=True)   
+                    #         for gt in gts:                                
+                    #             gt = gt.detach().cpu().numpy()
+                    #             filename = os.path.join(csvdir, f"{sample_name}_gt_Fv_train.csv")
+                    #             np.savetxt(filename, gt[0], delimiter=",", fmt="%.6f")
+                    #             filename = os.path.join(csvdir, f"{sample_name}_gt_T_train.csv")
+                    #             np.savetxt(filename, gt[1], delimiter=",", fmt="%.6f")
+                    #     for output in outputs:                                
+                    #         output = output.detach().cpu().numpy()
+                    #         filename = os.path.join(csvdir, f"{sample_name}_pred_Fv_train.csv")
+                    #         np.savetxt(filename, output[0], delimiter=",", fmt="%.6f")
+                    #         filename = os.path.join(csvdir, f"{sample_name}_pred_T_train.csv")
+                    #         np.savetxt(filename, output[1], delimiter=",", fmt="%.6f")
 
             avg_train_loss = running_loss / len(train_loader)
             train_losses.append(avg_train_loss)
@@ -113,7 +171,7 @@ class CNNencdec(nn.Module):
             self.eval()
             val_loss = 0.0
             print4samples = 0 # Number of samples to print heatmaps for
-            early_stop_patience = 15 # Number of epochs to wait before early stopping
+            early_stop_patience = 10#15 # Number of epochs to wait before early stopping
             with torch.no_grad():
                 with tqdm(val_loader, desc=f"Epoch {epoch+1}/{self.config.num_epochs} [Val]") as pbar:
                     for i, (inputs, gts) in enumerate(pbar):
@@ -132,9 +190,29 @@ class CNNencdec(nn.Module):
                             loss = F.mse_loss(outputs[:, 0, :, :], gts[:, :, :])
                         val_loss += loss.item()
                         pbar.set_postfix({"loss": loss.item()})
-                       
+                        #
+                        # if self.config.MODE == "TrainSaveAllData":
+                        #     import numpy as np
+                        #     csvdir = os.path.join(self.config.out_dir, "csv_data")
+                        #     sample_name = os.path.basename(val_loader.dataset.dataset.sample_dirs[val_loader.sampler.data_source.indices[i]])
+                        #     # if epoch == 0:
+                        #     os.makedirs(self.config.out_dir, exist_ok=True)                            
+                        #     os.makedirs(csvdir, exist_ok=True)   
+                        #     for gt in gts:                                
+                        #         gt = gt.detach().cpu().numpy()
+                        #         filename = os.path.join(csvdir, f"{sample_name}_gt_Fv_val.csv")
+                        #         np.savetxt(filename, gt[0], delimiter=",", fmt="%.6f")
+                        #         filename = os.path.join(csvdir, f"{sample_name}_gt_T_val.csv")
+                        #         np.savetxt(filename, gt[1], delimiter=",", fmt="%.6f")
+                        #     for output in outputs:                                
+                        #         output = output.detach().cpu().numpy()
+                        #         filename = os.path.join(csvdir, f"{sample_name}_pred_Fv_val.csv")
+                        #         np.savetxt(filename, output[0], delimiter=",", fmt="%.6f")
+                        #         filename = os.path.join(csvdir, f"{sample_name}_pred_T_val.csv")
+                        #         np.savetxt(filename, output[1], delimiter=",", fmt="%.6f")
+                            
                         # Save heatmaps and error heatmaps for visual inspection for 4 samples every 10 epochs
-                        if (epoch%10 == 0) and print4samples < 4:
+                        if (epoch%10 == 0) and print4samples < 4 :
                             saveheatmaps(outputs, gts, epoch, str(i)+"_", inputs,
                                          self.config.out_dir,
                                          val_loader.dataset.dataset.sample_dirs[val_loader.sampler.data_source.indices[i]],
@@ -171,6 +249,10 @@ class CNNencdec(nn.Module):
         self.load_state_dict(torch.load(os.path.join(self.config.out_dir, "best_flame_model.pth")))
         self.to(self.config.device)
         self.eval()
+        if self.config.MODE == "TrainSaveAllData":
+            self.save_predictions_from_loader(train_loader, "train")
+            self.save_predictions_from_loader(val_loader, "val")
+            # self.save_predictions_from_loader(test_loader, "test")
         test_loss = 0.0
         print10samples = 0 #print 10 test samples heatmaps
         with torch.no_grad():
@@ -198,6 +280,25 @@ class CNNencdec(nn.Module):
                         outputs[:, 0, :, :][outputs[:, 0, :, :] < normalized_setTValZero] = 0.0
                         loss = F.mse_loss(outputs[:, 0, :, :], gts[:, :, :])
                     test_loss += loss.item()
+                    #
+                    if self.config.MODE == "TrainSaveAllData":
+                        # import numpy as np
+                        csvdir = os.path.join(self.config.out_dir, "csv_data_best_test")
+                        sample_name = os.path.basename(test_loader.dataset.dataset.sample_dirs[test_loader.sampler.data_source.indices[i]])                        
+                        os.makedirs(self.config.out_dir, exist_ok=True)                            
+                        os.makedirs(csvdir, exist_ok=True)   
+                        for gt in gts:                                
+                            gt = gt.detach().cpu().numpy()
+                            filename = os.path.join(csvdir, f"{sample_name}_gt_Fv_test.csv")
+                            np.savetxt(filename, gt[0], delimiter=",", fmt="%.6f")
+                            filename = os.path.join(csvdir, f"{sample_name}_gt_T_test.csv")
+                            np.savetxt(filename, gt[1], delimiter=",", fmt="%.6f")
+                        for output in outputs:                                
+                            output = output.detach().cpu().numpy()
+                            filename = os.path.join(csvdir, f"{sample_name}_pred_Fv_test.csv")
+                            np.savetxt(filename, output[0], delimiter=",", fmt="%.6f")
+                            filename = os.path.join(csvdir, f"{sample_name}_pred_T_test.csv")
+                            np.savetxt(filename, output[1], delimiter=",", fmt="%.6f")
                     # Save heatmaps and error heatmaps for visual inspection for 10 samples
                     if print10samples < 10:
                         saveheatmaps(outputs, gts, "Test", str(i)+"_", inputs,
@@ -248,7 +349,7 @@ class CNNencdec(nn.Module):
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
-        plt.ylim(0, 0.0001)  
+        plt.ylim(0, 0.001)  
         plt.savefig(os.path.join(self.config.out_dir, "losses_zoom.png"))
         plt.close()
         
@@ -318,8 +419,8 @@ class Encoder(nn.Module):
             ResidualBlock(64, 128, stride=2),
             ResidualBlock(128, 256, stride=2),
             ResidualBlock(256, 512, stride=2),
-            ResidualBlock(512, 512, stride=2),
             # ResidualBlock(512, 512, stride=2),
+            ## ResidualBlock(512, 512, stride=2),
             ResidualBlock(512, 512, stride=1)
         )
 
@@ -352,7 +453,7 @@ class Decoder(nn.Module):
         super().__init__()
         self.up_blocks = nn.ModuleList([
             self._up_block(512, 512, 0.2),
-            self._up_block(512, 512, 0.3),
+            # self._up_block(512, 512, 0.3),
             self._up_block(512, 256, 0.3),
             self._up_block(256, 128, 0.2),
             self._up_block(128, 64, 0.1)

@@ -26,9 +26,11 @@ class Config:
         """
         #Params for dataset creation    
         self.paramsType2 = "~~~~~Params for dataset creation~~~~~"
-        self.root_dir = 'C:/Users/User/Documents/GenerateData/GeneratedData_Inference'  # Path to your dataset GeneratedData / GeneratedData_Extra / try / GeneratedData_Inference / GeneratedData_SingleTest
-        self.modelpath = os.path.join('C:/Users/User/Documents/Sooth_Features_Extraction_plat/Train_CNNencdec_both_2025-0609-120330', 'best_flame_model.pth')
-        self.MODE = "Inference"  # Set to "Train" or "SingleTest" or "Inference" MODE as needed (train- train the model, test- load and test the model on a single sample (input-output), inference- load model and run inference on a single sample (input only))
+        self.root_dir = 'C:/Users/User/Documents/GenerateData/GeneratedData_SingleTest'  # Path to your dataset GeneratedData / GeneratedData_Extra / try / GeneratedData_Inference / GeneratedData_SingleTest
+        # self.modelpath = os.path.join('C:/Users/User/Documents/Sooth_Features_Extraction_plat/Train_CNNencdec_both_2025-0609-120330', 'best_flame_model.pth')
+        self.modelpath = os.path.join('C:/Users/User/Documents/Sooth_Features_Extraction_plat/TrainSaveAllData_CNNencdec_both_2025-0720-223600', 'best_flame_model.pth')
+        self.MODE = "SingleTest"  # Set to "Train" or "SingleTest" or "Inference" or "TrainSaveAllData" MODE as needed (train- train the model, test- load and test the model on a single sample (input-output), inference- load model and run inference on a single sample (input only))
+    
         ##Data for GeneratedData without image values>20000 or values<0
         self.global_img_min = 0.0
         self.global_img_max = 19941.026744724255
@@ -101,17 +103,17 @@ class Config:
         self.setTValZero = 1000.0 #Set values smaller than 1000 to 300.0 in sootCalculation["T"]
         self.isImgFlipped = False # DO NOT CHANGE! This is used by the system which indicates if the image is upside down or not, so it will know how to handle it and how to plot it.
     # Params for model training
-        self.paramsType3 = "~~~~~Params for model training~~~~~"
+        self.paramsType3 = "~~~~~Params for model training~~~~~_No crop of bottom"
         self.model_name = "CNNencdec" #"TwoStageTraining" / "MultiTaskResNet" / "CNNencdec" 
         self.batch_size = 12 # Batch size for training
         self.criterion = nn.MSELoss()
         self.lr=0.0001
-        self.num_epochs = 300 
-        self.epochs_remark = "Patience of 15 epochs" 
+        self.num_epochs = 300
+        self.epochs_remark = "Patience of 25 epochs" 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         torch.cuda.empty_cache()
         self.optimizer = "torch.optim.Adam(self.parameters(), lr=self.config.lr)"
-        self.scheduler = "torch.optim.lr_scheduler.ReduceLROnPlateau(self.config.optimizer, mode='min', factor=0.3, patience=3)"
+        self.scheduler = "torch.optim.lr_scheduler.ReduceLROnPlateau(self.config.optimizer, mode='min', factor=0.3, patience=4) "
     #Params for outputs and logging
         self.paramsType1 = "~~~~~Params for outputs and logging~~~~~"     
         self.out_dir = f'{self.MODE}_{self.model_name}_{self.targetType}_{time.strftime("%Y-%m%d-%H%M%S")}' #Path to save outputs   
@@ -200,6 +202,41 @@ if __name__ == "__main__":
         except Exception as e:
             main_logger.error(f"Error in saving loss plots: {e}")
     
+    elif config.MODE == "TrainSaveAllData":
+        main_logger.info("Running in TrainSaveAllData mode...")    
+        #Create Data Loaders
+        main_logger.info("Creating dataset...")
+        # Prepare data
+        train_loader, val_loader, test_loader = prepare_data(config)                      
+        # Load model
+        try:
+            model_module = import_module(f"Mymodels.{config.model_name}")
+            model_class = getattr(model_module, config.model_name)
+            model = model_class(config).to(config.device)
+            # model_path = config.modelpath
+            # model.load_state_dict(torch.load(model_path, map_location=config.device), strict=False)
+            # model.eval()
+            # main_logger.info(f"Loaded model from {model_path}")
+        except Exception as e:
+            main_logger.error(f"Error loading model: {e}")
+            raise
+        # Run Model
+        main_logger.info("Training model...")
+        try:    
+            train_losses, val_losses, test_loss, best_model = model.train_model(train_loader, val_loader, test_loader)
+            main_logger.info(f"Model '{config.model_name}' trained successfully.")
+            main_logger.info(f"Best model parameters:\n~~~~~~~~~~~~~~~\n{best_model.parameters()}\n saved to {os.path.join(config.out_dir, 'best_model.pth')}")
+            
+        except Exception as e:
+            main_logger.error(f"Error loading model '{config.model_name}': {e}")
+            raise
+    #3. Save outputs
+        try:
+            model.plotLosses(train_losses, val_losses, test_loss)
+            main_logger.info(f"Loss plots saved to {os.path.join(config.out_dir, 'losses.png')}")
+        except Exception as e:
+            main_logger.error(f"Error in saving loss plots: {e}")
+
     elif config.MODE == "SingleTest":
         main_logger.info("Running in test mode...")    
                       
@@ -222,7 +259,7 @@ if __name__ == "__main__":
         image_tensor = image_tensor.unsqueeze(0).to(config.device)  # add batch dimension
         gt_tensor = gt_tensor.unsqueeze(0).to(config.device)
 
-        # Inference for both only
+        # for both only
         with torch.no_grad():
             output = model(image_tensor)        
         

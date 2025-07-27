@@ -49,7 +49,8 @@ def save_inputImages(inputs, sample_number, heat_dir, samp_folder, isImgFlipped,
     #save original image (might be different due to flips, crop to size, etc.)
         cfd_path = os.path.join(rootdir, samp_folder, "CFDImage.mat")
         cfd_mat = loadmat(cfd_path)
-        image_array = cfd_mat["CFDImage"].astype(np.float32)        
+        image_array = cfd_mat["CFDImage"].astype(np.float32)
+        # image_array = cfd_mat["CFDImageOut"].astype(np.float32)        
         # Normalize to [0, 1] and scale to [0, 255]
         image_array = image_array / np.max(image_array)
         image_uint8 = (image_array * 255).astype(np.uint8)
